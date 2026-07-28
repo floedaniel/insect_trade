@@ -1,0 +1,8 @@
+tavily-python
+python-dotenv
+pandas
+openpyxl
+requests
+lxml
+playwright
+ddgs
