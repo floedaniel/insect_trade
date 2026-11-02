@@ -54,7 +54,7 @@ theme_set(theme_minimal(base_size = 15) +
 ## How we did it
 
 | Step | What | Source |
-|---|---|---|
+|----|----|----|
 | 1 | Traded species list | Hughes et al. 2026 (*Sci. Adv.*): 10,682 invertebrate names |
 | 2 | Live imports | LEMIS US imports 2000–2022, corrected (Marshall et al. 2025) |
 | 3 | Live use in trade | Lassaline et al. 2025 review; Wang et al. 2023 eBay sales |
@@ -109,8 +109,9 @@ ggplot(main, aes(tier, fill = live_evidence_level)) +
   guides(fill = guide_legend(nrow = 2))
 ```
 
-::: {.callout-warning}
-Tier C (`r fmt(sum(main$tier == "C"))` species) uses a rough plant-feeding proxy (family/order). It needs host-plant data before it can rank species.
+::: callout-warning
+Tier C (`r fmt(sum(main$tier == "C"))` species) uses a rough plant-feeding proxy (family/order).
+It needs host-plant data before it can rank species.
 :::
 
 ## Regulated species: what evidence of live trade?
@@ -139,14 +140,16 @@ ggplot(reg, aes(evidence, fct_rev(species), fill = present)) +
   theme(axis.text.y = element_text(face = "italic", size = 11), legend.position = "right")
 ```
 
-## Two pathways for regulated pests
+## Regulated pests traded alive
+
+All live trade counts the same, whatever the route (pet, hobby, lab or rearing supply): a live animal is a live animal.
 
 ```{r}
 #| label: pathways
 main |>
   filter(tier == "A", live) |>
   mutate(pathway = case_when(
-           lemis_live_shipments > 0 & str_detect(coalesce(lemis_live_purpose, ""), "S|M") ~ "Lab / rearing supply",
+           lemis_live_shipments > 0 & str_detect(coalesce(lemis_live_purpose, ""), "S|M") ~ "Lab / rearing",
            str_detect(coalesce(lassaline_use, ""), "pet|aquarium") | web_shops > 0 ~ "Pet / hobby trade",
            TRUE ~ "Other / commercial"),
          lists = str_squish(paste(coalesce(eppo_list, ""), coalesce(eu_list, ""),
@@ -157,7 +160,7 @@ main |>
                                                                  lemis_live_purpose),
                               TRUE ~ paste("literature:", lassaline_use))) |>
   arrange(pathway, species) |>
-  transmute(Pathway = pathway, Species = paste0("*", species, "*"), Lists = str_trunc(lists, 70),
+  transmute(Route = pathway, Species = paste0("*", species, "*"), Lists = str_trunc(lists, 70),
             Evidence = evidence) |>
   kable()
 ```
@@ -176,7 +179,8 @@ main |> filter(on_sale_online) |>
   theme(axis.text.y = element_text(face = "italic"))
 ```
 
-Mostly live feeders (mealworm, dubia roach, black soldier fly, superworm, silkworm, waxworm) and pet snails. Crawl in progress: `r fmt(n_crawled)` shops so far.
+Mostly live feeders (mealworm, dubia roach, black soldier fly, superworm, silkworm, waxworm) and pet snails.
+Crawl in progress: `r fmt(n_crawled)` shops so far.
 
 ## Plant-pest candidates on sale online (not regulated in Norway/EU)
 
@@ -215,7 +219,7 @@ Shipping terms are often vague: "unclear" means the shop's shipping pages don't 
 
 - **Covers:** `r fmt(n_crawled)` shops found by multilingual searches (Norwegian/Nordic first); full catalogues where shops publish them (Shopify, WooCommerce), otherwise product sitemaps or links; names matched by scientific names, synonyms and common names in 11 languages.
 - **Polite and lawful:** robots.txt obeyed, ≥ 1.5 s between requests per shop, no personal data stored.
-- **Not covered:** marketplaces whose terms forbid scraping (**Finn.no**, eBay, Amazon, Facebook groups, Blocket, DBA …) → need manual checks; shops that show products only with JavaScript.
+- **Not covered:** marketplaces whose terms forbid scraping (eBay, Amazon, Facebook groups, Blocket, DBA …) and shops that show products only with JavaScript.
 - **Uncertain:** common-name matches (weaker than scientific names), live/dead labels from listing text, shipping terms.
 
 ## Limitations
@@ -227,11 +231,11 @@ Shipping terms are often vague: "unclear" means the shop's shipping pages don't 
 
 ## For discussion with the panel
 
-1. **Tier rules:** is A/B/C/D the right frame? Should lab/rearing imports count like pet trade?
-2. **Priorities:** which tier A–C species with live trade should go to a pest risk assessment (e.g. FinnPRIO)?
-3. **Pathways:** pet/aquarium trade (ants, apple snails) vs lab/rearing supply (*Spodoptera*, *Helicoverpa*).
-4. **Gaps:** manual checks of Finn.no and social media; host plants and climate match for Norway.
+1.  **Tier rules:** is A/B/C/D the right frame? (All live trade counts equally: pet, hobby, lab and rearing.)
+2.  **Priorities:** which tier A–C species with live trade should go to a pest risk assessment (e.g. FinnPRIO)?
+3.  **Routes:** pet and aquarium trade (ants, apple snails) and lab/rearing supply (*Spodoptera*, *Helicoverpa*) both move live pests.
+4.  **Gaps:** host plants and climate match for Norway; species names only found by common name.
 
-::: {.notes}
+::: notes
 Numbers update when 4_scripts/07_main_results.R and the web scraper report are rerun.
 :::

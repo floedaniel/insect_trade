@@ -144,7 +144,7 @@ EPPO name matching (Hughes names): 753 exact, 32 synonym, 22 binomial-of-trinomi
 | *Popillia japonica*, *Anoplophora glabripennis*, *A. chinensis*, *Bactrocera tryoni*, *Ceratitis capitata*, *Limonius californicus*, *Metamasius hemipterus*, *Naupactus xanthographus*, *Premnotrypes latithorax*, *Vespa velutina*, *Cacyreus marshalli*, *Pomacea paludosa* | Insects/snail | EPPO/EU/NO | dead | Only dead material (LEMIS bodies/specimens, eBay specimens) |
 
 ## Findings so far
-- **11 regulated plant pests are traded live.** Two different pathways:
+- **11 regulated plant pests are traded live.** Two routes, which count the same (live is live):
   - **Pets:** ants (*Solenopsis invicta*, *S. geminata*, *Wasmannia auropunctata*, *Pachycondyla chinensis*) and apple snails (*Pomacea canaliculata*, *P. maculata*, *P. diffusa*). These match online pet trade, so ant-keeping and aquarium shops are the priority for step 2.
   - **Lab and rearing supply:** *Spodoptera frugiperda*, *Helicoverpa armigera*, *Lycorma delicatula*, *Diabrotica virgifera* (LEMIS 2015–2022, purposes commercial/scientific/biomedical). Probably not sold to hobbyists, but live movement all the same.
 - **Most traded insects are dead:** 4,189 of 6,121 insect species have only dead evidence (eBay specimens, collections, LEMIS bodies). *Popillia japonica* and *Anoplophora* spp. appear only as dead material.
@@ -177,7 +177,6 @@ EPPO name matching (Hughes names): 753 exact, 32 synonym, 22 binomial-of-trinomi
 
 # What needs adding
 - [ ] **Finish and check the web scrape:** review `regulated_on_sale` and `species_on_sale`, check common-name hits and `check` labels by hand on a sample, review `new_latin_names` and add real species to the list, and check `ships_to_norway` evidence.
-- [ ] **Manual checks where scraping is not allowed:** Finn.no, Tise, Facebook groups, eBay (official API needs a key).
 - [ ] **JavaScript-only shops:** missed on this PC (headless browsers blocked by group policy); run the scraper with a browser on another machine if needed.
 - [x] ~~KEY NEXT STEP: tie species names to websites (step 2–3).~~ Done with `insect_scraper/`. Original plan: The candidate list shows what *could* be sold live; the proof is finding the species on real sale pages. Plan: (1) for the 546 discovered shops (start with the 256 labelled live), check robots.txt, read the sitemap or category pages, and search product titles for the candidate names and their synonyms (as in Marshall et al. 2022, Code S01–S05); (2) per hit, store species, shop, URL, title, life stage, live/dead label, price, seller country and `ships_to`; (3) start with the 27 regulated candidates, then the rest; (4) add Finn.no, Norwegian hobby, ant-keeping and aquarium shops, and EU shops that ship to Norway. Output: `5_outputs/tables/species_by_website.xlsx`.
 - [ ] **Norwegian regulation:** Lovdata plant health regulation (forskrift om planter og tiltak mot planteskadegjørere), Artsdatabanken alien species list.
@@ -190,4 +189,5 @@ EPPO name matching (Hughes names): 753 exact, 32 synonym, 22 binomial-of-trinomi
 # Open questions
 - Which platforms are in scope? Marketplaces whose terms forbid scraping are skipped (list in `insect_scraper/config.py`); should any be checked by hand or through an official API?
 - Acceptable false-positive rate for extracting species names from listings?
-- Should lab/rearing imports (purpose S/M) be scored the same as pet trade in the tiers?
+- ~~Should lab/rearing imports be scored the same as pet trade?~~ **Decided: yes** — a live animal is a live animal, whatever the route.
+- ~~Finn.no~~ **Decided: dropped** (terms forbid scraping; no manual checks).

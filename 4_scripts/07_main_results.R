@@ -11,9 +11,10 @@
 #   C  potential plant pest: EPPO host-plant records, or a plant-feeding group
 #      (family/order proxy, flagged as such)
 #   D  no known plant risk
-# Live trade evidence (strongest first): live listing found on a web shop now
-#   > live US import (LEMIS 2000-2022) > live use in the literature (Lassaline)
-#   > unknown form > dead material only.
+# Live trade: ANY live evidence counts the same (pet, hobby, lab or rearing:
+#   a live animal is a live animal). Sources: live listing on a web shop now,
+#   live US import (LEMIS 2000-2022), live use in the literature (Lassaline).
+#   Then: traded in unknown form; dead material only.
 
 suppressMessages({
   library(dplyr); library(readr); library(stringr); library(tidyr)
@@ -105,9 +106,14 @@ main <- acc |>
       life_state == "unknown" ~ "4 traded, form unknown",
       TRUE ~ "5 dead material only"),
     on_sale_online = web_shops > 0,
-    priority_score = (4 - match(tier, c("A", "B", "C", "D")) + 1) * 100 +
-      (6 - as.integer(substr(live_evidence_level, 1, 1))) * 10 +
-      pmin(web_shops_ship_norway, 5) * 2 + pmin(web_shops, 20) / 4) |>
+    live_any = as.integer(substr(live_evidence_level, 1, 1)) <= 3,
+    n_live_sources = (web_live_listings > 0) + (lemis_live_shipments > 0) +
+      str_detect(coalesce(lassaline_use, ""), "pet|biocontrol|exhibit|pollin|honey|aquarium|feeder"),
+    # tier first; then live (any source, all equal) > unknown > dead; then
+    # number of independent live sources, shops shipping to Norway, shops
+    priority_score = (4 - match(tier, c("A", "B", "C", "D")) + 1) * 1000 +
+      case_when(live_any ~ 300, str_starts(live_evidence_level, "4") ~ 200, TRUE ~ 100) +
+      n_live_sources * 20 + pmin(web_shops_ship_norway, 5) * 2 + pmin(web_shops, 20) / 4) |>
   arrange(desc(priority_score), desc(web_shops), desc(lemis_live_shipments)) |>
   mutate(rank = row_number()) |>
   transmute(rank, species = accepted_name, tier, tier_label, live_evidence_level,
@@ -119,7 +125,7 @@ main <- acc |>
             lemis_live_shipments, lemis_live_first, lemis_live_last,
             lemis_live_purpose, lemis_live_origin, lemis_dead_shipments,
             lassaline_use, wang_ebay_dead_sales, hughes_sources,
-            life_state_before_web = life_state, names_merged = names,
+            n_live_sources, life_state_before_web = life_state, names_merged = names,
             priority_score)
 
 priority <- main |> filter(tier %in% c("A", "B", "C"),
@@ -147,7 +153,7 @@ front <- tibble::tribble(
   "Tier A species with live evidence", paste(main$species[main$tier == "A" & as.integer(substr(main$live_evidence_level, 1, 1)) <= 3], collapse = "; "),
   "Tier A species on sale online", paste(main$species[main$tier == "A" & main$on_sale_online], collapse = "; "),
   "Sheets", "summary | priority (top 150) | main (all in-scope species) | web_listings | tier_x_evidence | sources_methods | column_guide. Figures and presentation: insect trade results.qmd",
-  "Draft tier rules", "A regulated; B on a list elsewhere; C EPPO host records or plant-feeding family/order (proxy); D rest. Live evidence: 1 online live listing > 2 LEMIS live import > 3 live use in literature > 4 unknown form > 5 dead only.")
+  "Draft tier rules", "A regulated; B on a list elsewhere; C EPPO host records or plant-feeding family/order (proxy); D rest. Live trade: any live evidence counts the same (pet, hobby, lab, rearing). Ranking: tier, then live > unknown form > dead only, then number of live sources, shops shipping to Norway, shops.")
 
 sources <- tibble::tribble(
   ~source, ~what, ~live_vs_dead,
@@ -162,9 +168,9 @@ sources <- tibble::tribble(
 
 guide <- tibble::tribble(
   ~column, ~meaning,
-  "rank / priority_score", "Order for discussion: tier first, then strength of live evidence, shops shipping to Norway, number of shops",
+  "rank / priority_score", "Order for discussion: tier first; then live (any source, all equal) > unknown form > dead only; then number of independent live sources, shops shipping to Norway, number of shops",
   "tier", "A regulated; B regulated elsewhere; C potential plant pest; D no known plant risk (DRAFT rules)",
-  "live_evidence_level", "1 live on sale online now; 2 live US import (LEMIS); 3 live use in literature; 4 traded, form unknown; 5 dead material only",
+  "live_evidence_level", "Which kind of evidence was found first (1 online live listing, 2 LEMIS live import, 3 live use in literature; 1-3 all count as live), 4 traded in unknown form, 5 dead material only",
   "plant_feeding", "EPPO host records, or proxy from family/order (check)",
   "eppo_list / eu_list / no_list", "Current listings: EPPO (A1/A2, alert), EU (2019/2072 annexes, IAS Union concern), Norway",
   "web_*", "Web scrape: shops, listings, live listings, shops that state shipping to Norway, seller countries, one example URL",

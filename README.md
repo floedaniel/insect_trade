@@ -245,7 +245,7 @@ to-do list. In short (November 2026):
 
 - 10,859 species (after merging synonyms) → **2,373 candidates** in scope and
   traded live or in unknown form.
-- **11 regulated plant pests with live trade**, through two pathways:
+- **11 regulated plant pests with live trade** (all live trade counts the same, whatever the route):
   - **pets:** ants *Solenopsis invicta*, *S. geminata*, *Wasmannia auropunctata*,
     *Pachycondyla chinensis* (EU IAS of Union concern) and apple snails
     *Pomacea canaliculata* (EPPO A1), *P. maculata* (A2), *P. diffusa*
@@ -256,8 +256,8 @@ to-do list. In short (November 2026):
 - **Web scraper (first results, crawl in progress):** after ~120 shops, 367
   species on sale pages, mostly live feeders (mealworm, dubia roach, black
   soldier fly, superworm, silkworm, fruit flies, waxworm); no regulated species
-  yet; few shops state that they ship to Norway. Finn.no is skipped (terms
-  forbid automated collection) and needs a manual check.
+  yet; few shops state that they ship to Norway. Marketplaces whose terms forbid
+  scraping (e.g. Finn.no) are not covered.
 
 ## Caveats
 
