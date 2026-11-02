@@ -49,3 +49,5 @@ insect_trade_results.csv
 *.html
 ~$*
 .Rhistory
+*.sqlite
+*.fst
