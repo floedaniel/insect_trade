@@ -306,10 +306,18 @@ async def crawl_shop(f: Fetcher, idx: NameIndex, domain: str, found_url: str = "
             if INSECT_RX.search(f"{slug} {text}"):
                 return 1
             return 2 if re.search(r"/products?/|/p/|/item|/artikel|\.html$", slug) else 3
-        ranked = sorted(dict(urls).items(), key=prio)
+        scored = [(u, t, prio((u, t))) for u, t in dict(urls).items()]
+        scored.sort(key=lambda x: x[2])
+        # pages with a name or insect word: always. Other product pages only
+        # for shops that are mainly insect shops (>= 30% insect-looking URLs);
+        # general pet shops would otherwise cost ~40 min for dog food pages.
+        n_insect = sum(1 for *_, p in scored if p <= 1)
+        n_prod = sum(1 for *_, p in scored if p <= 2)
+        max_prio = 2 if n_prod and n_insect / n_prod >= 0.3 else 1
+        res.method += f" ({n_insect} insect-looking of {n_prod} product URLs)"
         fetched = 0
-        for url, text in ranked:
-            if fetched >= config.MAX_PRODUCT_PAGES or prio((url, text)) >= 3:
+        for url, text, p in scored:
+            if fetched >= config.MAX_PRODUCT_PAGES or p > max_prio:
                 break
             r = await f.get(url)
             fetched += 1

@@ -68,7 +68,8 @@ so later runs are fast and work offline.
 | 3 | `03_eppo_gdapi.R` | EPPO GDAPI v2 for all matched codes: categorization (A1/A2, EU, national lists), host plants, distribution. Prints a counter | `eppo_code_summary.csv`, `eppo_categorization.csv`, `eppo_hosts.csv`, `eppo_distribution.csv` |
 | 4 | `04_gbif_names.R` | GBIF backbone match for class/order, accepted names and **GBIF species keys** (for later occurrence/distribution queries). Names the backbone only knows at genus level get a second try through Catalogue of Life and GBIF synonym search (flagged "check") | `gbif_names.csv`, `5_outputs/tables/gbif_names.xlsx` |
 | 5 | `05_scope_life_state.R` | Plant-pest scope; live/dead/unknown per species from all evidence; merges synonyms by GBIF accepted name | `species_scope_state.csv`, `species_accepted_state.csv`, **`5_outputs/tables/plant_pest_candidates.csv`** |
-| 6 | `06_species_by_website.R` | **Ties species to real sale pages.** For each discovered shop: obeys robots.txt, reads product sitemaps (or links when there is no sitemap), finds candidate names in URLs, image titles and link text, fetches the matching pages (regulated species first) and records title, price, page type, live/dead label and ships-to hints. Names: scientific names and synonyms, plus GBIF common names in 11 languages (weaker evidence) | `5_outputs/tables/species_by_website.xlsx` (hits, by_species, by_shop, shop_status, column_guide) |
+| 6 | **`insect_scraper/` (Python, see below)** | **Ties species to real sale pages**: shop discovery, full shop catalogues, name matching, live/dead, ships to Norway | **`5_outputs/tables/species_on_sale.xlsx`** |
+| (6) | `06_species_by_website.R` | Older, lighter R crawler (sitemap URLs only). Superseded by `insect_scraper/`; kept for reference | `5_outputs/tables/species_by_website.xlsx` |
 | 7 | *planned* `07_tier.R` | Tiers A–D (below) | |
 
 APIs are called directly with `httr2`, without wrapper packages.
@@ -150,6 +151,16 @@ py -3 -m insect_scraper all                          # all three
 py -3 -m pytest tests                                # unit tests
 ```
 
+Use `py -3 -u ... > 2_processed_data/scrape_log_crawl.txt` to log progress
+(`-u` writes the log as it goes). Several jobs can run at once (for example
+`discover` and `crawl`, or two `crawl` jobs): a lock file per shop
+(`2_processed_data/scrape_results/<shop>.lock`) stops two jobs from crawling
+the same shop. Finished shops are saved one by one
+(`2_processed_data/scrape_results/<shop>.json`), so a stopped crawl resumes
+where it was. If a job crashes, delete its leftover `.lock` files.
+The xlsx is rewritten every 50 shops during a crawl, so results can be
+followed live.
+
 **How it works**
 
 1. **Shops:** `discovered_shops.csv` (from `insect_trade_loop.py`) plus
@@ -161,6 +172,12 @@ py -3 -m pytest tests                                # unit tests
    whole catalogue as JSON (`/products.json`, `/wp-json/wc/store/products`).
    Other shops: product sitemaps, else a link crawl. Product pages give
    structured data (JSON-LD, microdata, OpenGraph): name, price, currency, stock.
+   **Page selection** in shops without a catalogue API: pages whose URL or
+   sitemap title holds a species name or an insect word are always fetched;
+   other product pages only when the shop is mainly an insect shop (at least
+   30% insect-looking product URLs), up to 1,500 pages per shop. General pet
+   shops would otherwise cost about 40 minutes each for dog and cat food pages.
+   The `shops` sheet shows the counts (method column).
 3. **Matching:** all ~6,800 in-scope plant-pest species, including those
    labelled dead (a live listing upgrades them): scientific names, synonyms,
    EPPO names (also in URLs and descriptions), and GBIF common names in 11
@@ -235,8 +252,11 @@ to-do list. In short (November 2026):
   - **lab/rearing imports** (LEMIS 2015–2022): *Spodoptera frugiperda*,
     *Helicoverpa armigera*, *Lycorma delicatula*, *Diabrotica virgifera*.
 - Most traded insect species show only **dead** trade (specimens).
-- No Norwegian listings collected yet. Finn.no, Norwegian shops and a
-  `ships_to` field are next.
+- **Web scraper (first results, crawl in progress):** after ~120 shops, 367
+  species on sale pages, mostly live feeders (mealworm, dubia roach, black
+  soldier fly, superworm, silkworm, fruit flies, waxworm); no regulated species
+  yet; few shops state that they ship to Norway. Finn.no is skipped (terms
+  forbid automated collection) and needs a manual check.
 
 ## Caveats
 

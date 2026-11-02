@@ -33,7 +33,12 @@ def load_shops(states: list[str]) -> pd.DataFrame:
     if config.SHOPS_MASTER.exists():
         frames.append(pd.read_csv(config.SHOPS_MASTER, dtype=str).fillna(""))
     shops = pd.concat(frames, ignore_index=True)
-    shops["domain"] = shops["domain"].str.lower().str.removeprefix("www.")
+    # bare host only: no query strings, paths or ports (they also break file names)
+    shops["domain"] = (shops["domain"].str.lower().str.strip()
+                       .str.replace(r"^https?://", "", regex=True)
+                       .str.replace(r"[/?#:].*$", "", regex=True)
+                       .str.removeprefix("www."))
+    shops = shops[shops["domain"].str.fullmatch(r"[a-z0-9.-]+\.[a-z]{2,}")]
     shops = shops.drop_duplicates("domain")
     if states:
         shops = shops[shops["life_state"].isin(states) | (shops["life_state"] == "")]
@@ -52,6 +57,14 @@ async def crawl_all(shops: pd.DataFrame, workers: int, refresh: bool) -> None:
     async def one(r):
         nonlocal done
         async with sem:
+            # several crawl processes may run at once: a lock file per shop
+            # makes sure one shop is never crawled by two processes together
+            lock = RESULTS_DIR / f"{r.domain}.lock"
+            if (RESULTS_DIR / f"{r.domain}.json").exists() and not refresh:
+                return
+            if lock.exists() and time.time() - lock.stat().st_mtime < 6 * 3600:
+                return
+            lock.write_text(str(time.time()), encoding="utf-8")
             try:
                 res = await crawl_shop(f, idx, r.domain, getattr(r, "url", "") or "")
                 out = res.to_json()
@@ -59,6 +72,14 @@ async def crawl_all(shops: pd.DataFrame, workers: int, refresh: bool) -> None:
                 out = {"domain": r.domain, "status": f"error: {type(e).__name__}: {e}"[:300],
                        "products": [], "new_names": [], "shop_info": {}}
             (RESULTS_DIR / f"{r.domain}.json").write_text(json.dumps(out), encoding="utf-8")
+            lock.unlink(missing_ok=True)
+            # refresh the xlsx every 50 shops so results can be followed live
+            if done % 50 == 0:
+                try:
+                    from .report import write_report
+                    write_report(load_shops([]))
+                except Exception as e:
+                    print(f"  (interim report failed: {e})")
             done += 1
             n = len(out.get("products", []))
             reg = len({p["species"] for p in out.get("products", []) if p.get("regulated")})

@@ -7,7 +7,7 @@ editor_options:
   chunk_output_type: inline
 ---
 
-# Status (2026-11-02, evening)
+# Status (2026-11-02, afternoon)
 
 **Question:** which insects traded **alive** online could be invasive plant pests in Norway (later the EU)?
 
@@ -22,8 +22,8 @@ editor_options:
 | Step | Status |
 |---|---|
 | 1. Seed species list (Hughes 2026) | Done: 10,682 names (+420 live-imported LEMIS species = 11,102; 10,859 after merging synonyms) |
-| 2. Collect live listings (NO/EU) | Shop scripts label each row live/dead/check/unknown and write to `5_outputs/tables/`. Norway sources not added yet |
-| 3. Extract names from listings | Not started |
+| 2. Collect live listings (NO/EU) | **In progress:** `insect_scraper/` (Python) discovers shops (400+ multilingual searches) and crawls full shop catalogues. Running now; results in `species_on_sale.xlsx` |
+| 3. Extract names from listings | Done inside the scraper: scientific names, synonyms, EPPO names and GBIF common names (11 languages) in titles, URLs and descriptions |
 | 4. Resolve names (GBIF) | Done: 10,814 of 11,102 names resolved; 309 accepted species still have no class |
 | 5. Pest lookup (EPPO) | Done: 814 species codes + 422 genus codes, local SQLite + GDAPI |
 | 5b. Scope + life state | Done: LEMIS 2000–2022 (all forms), Lassaline use, Wang → `plant_pest_candidates.xlsx` (2,373) |
@@ -99,7 +99,9 @@ All raw data sits in `1_raw_data/<author+year_source>/`, and the PDFs in `3_meta
 | `4_scripts/03_eppo_gdapi.R` | GDAPI v2 (key from `EPPO_API_KEY` in `.Renviron`): categorization, hosts and distribution for species codes; categorization for genus codes | `eppo_code_summary.csv`, `eppo_genus_summary.csv`, long tables |
 | `4_scripts/04_gbif_names.R` | GBIF backbone match (direct API, cached): class/order, accepted names, GBIF species keys; fallback via Catalogue of Life and GBIF synonym search | `gbif_names.csv`, `gbif_names.xlsx` |
 | `4_scripts/05_scope_life_state.R` | Plant-pest scope + live/dead/unknown per species; genus listings; merges synonyms | `species_scope_state.csv`, `species_accepted_state.csv`, `5_outputs/tables/plant_pest_candidates.csv` |
-| Root `*.py` + `life_state.py` | Find shops and platform listings; every row labelled live/dead/check/unknown (multilingual keywords, incl. feeder insects) | `5_outputs/tables/discovered_shops.csv/.xlsx`, `platform_results.csv`, `commoncrawl_results.csv` |
+| Root `*.py` + `life_state.py` | Shop discovery scripts; every row labelled live/dead/check/unknown (keywords in `3_metadata/life_state_terms.csv`) | `5_outputs/tables/discovered_shops.xlsx` (working csv in `2_processed_data/`) |
+| **`insect_scraper/`** (Python) | **Exhaustive web scraper:** discovery searches, full shop catalogues (Shopify/WooCommerce JSON, sitemaps, link crawl), structured product data, name matching, live/dead, ships to Norway, seller country, new Latin names. Polite: robots.txt, ≥1.5 s per shop, ToS-restricted marketplaces skipped | **`5_outputs/tables/species_on_sale.xlsx`** |
+| `4_scripts/06_species_by_website.R` | Older, lighter R crawler (superseded by `insect_scraper/`) | `species_by_website.xlsx` |
 
 # What we have: key numbers
 
@@ -148,7 +150,8 @@ EPPO name matching (Hughes names): 753 exact, 32 synonym, 22 binomial-of-trinomi
 - **Most traded insects are dead:** 4,189 of 6,121 insect species have only dead evidence (eBay specimens, collections, LEMIS bodies). *Popillia japonica* and *Anoplophora* spp. appear only as dead material.
 - **Live, plant-relevant, not regulated in NO/EU:** *Papilio demoleus*, *Cydia pomonella*, giant African snails (*Lissachatina fulica*, *Achatina achatina*), *Theba pisana*, *Cornu aspersum*, *Busseola fusca*, *Bagrada hilaris*, *Harmonia axyridis*, and many biocontrol agents (EPPO PM 6/3).
 - **The newer LEMIS data matters:** 2015–2022 adds live imports of four regulated pests that 2000–2014 did not show.
-- **Shops:** 546 unique shops found so far (710 rows); keyword labels give 256 live, 266 unknown, 13 dead and 11 check.
+- **Shops:** 546 unique shops from the first discovery (710 rows); keyword labels give 256 live, 266 unknown, 13 dead and 11 check. The scraper's searches add more (686 shops in the crawl list at the restart).
+- **Web scraper, first results (crawl in progress, ~120 shops):** 367 species on sale pages. Top: *Tenebrio molitor* (23 shops), *Blaptica dubia* (18), *Hermetia illucens* (13), *Zophobas atratus*, *Bombyx mori*, *Drosophila melanogaster*/*hydei*, *Gromphadorhina portentosa*, *Galleria mellonella*, *Acheta domesticus*, *Manduca sexta*: mostly live feeders. No regulated species found on sale pages yet. Shipping: most shops unclear; few say they ship to Norway. 348 Latin names of in-scope genera found that are not in our species list (to review).
 
 # Done (2026-11-02)
 - [x] EPPO API run on LEMIS-only species; genus codes checked for whole-genus listings.
@@ -163,6 +166,9 @@ EPPO name matching (Hughes names): 753 exact, 32 synonym, 22 binomial-of-trinomi
 - [x] Shop scripts write to `5_outputs/tables/` with live/dead labels; `discovered_shops.xlsx` regenerated with life-state columns; xlsx headers follow the new columns.
 - [x] EPPO key read only from `EPPO_API_KEY` in `~/.Renviron` (no file path in the code).
 - [x] `README.md`, GitHub repo (https://github.com/floedaniel/insect_trade); raw data, PDFs, processed data, caches and Claude Code files are not in git.
+- [x] **Results are xlsx only** (no csv in `5_outputs/`; csv only as working files in `2_processed_data/`).
+- [x] **R crawler (`06_species_by_website.R`):** pilot showed common names are essential (feeder shops write "superworms", not *Zophobas*); added GBIF common names, plurals, page types (product/category/info/accessory), and an other-genus check against false common-name hits.
+- [x] **`insect_scraper/` built** (Python): discovery, full catalogues, structured data, matching of ~6,800 in-scope species (also those labelled dead), live/dead, ships to Norway, seller country, new Latin names; 13 unit tests. Fixes during the first run: shop addresses with query strings broke file names (now cleaned to the bare domain); general pet shops wasted ~40 min each on dog/cat food pages (now only insect-looking pages unless the shop is mainly an insect shop); xlsx refreshed every 50 shops.
 - [x] **Results made private:** `5_outputs/` (candidate table, shop lists) is gitignored and was removed from the whole git history (rewritten and force-pushed 2026-11-02), together with the old root `discovered_shops.csv/.xlsx`. Reasons: shop lists hold third-party listing text, the candidate table is built from EPPO data, and results are exploratory. Run the pipeline to regenerate them.
 
 # What needs updating
@@ -170,15 +176,18 @@ EPPO name matching (Hughes names): 753 exact, 32 synonym, 22 binomial-of-trinomi
 - [ ] **LEMIS live records without species names:** most live records are only to genus or higher rank. Consider a genus-level live flag for regulated genera.
 
 # What needs adding
-- [ ] **KEY NEXT STEP: tie species names to websites (step 2–3).** The candidate list shows what *could* be sold live; the proof is finding the species on real sale pages. Plan: (1) for the 546 discovered shops (start with the 256 labelled live), check robots.txt, read the sitemap or category pages, and search product titles for the candidate names and their synonyms (as in Marshall et al. 2022, Code S01–S05); (2) per hit, store species, shop, URL, title, life stage, live/dead label, price, seller country and `ships_to`; (3) start with the 27 regulated candidates, then the rest; (4) add Finn.no, Norwegian hobby, ant-keeping and aquarium shops, and EU shops that ship to Norway. Output: `5_outputs/tables/species_by_website.xlsx`.
+- [ ] **Finish and check the web scrape:** review `regulated_on_sale` and `species_on_sale`, check common-name hits and `check` labels by hand on a sample, review `new_latin_names` and add real species to the list, and check `ships_to_norway` evidence.
+- [ ] **Manual checks where scraping is not allowed:** Finn.no, Tise, Facebook groups, eBay (official API needs a key).
+- [ ] **JavaScript-only shops:** missed on this PC (headless browsers blocked by group policy); run the scraper with a browser on another machine if needed.
+- [x] ~~KEY NEXT STEP: tie species names to websites (step 2–3).~~ Done with `insect_scraper/`. Original plan: The candidate list shows what *could* be sold live; the proof is finding the species on real sale pages. Plan: (1) for the 546 discovered shops (start with the 256 labelled live), check robots.txt, read the sitemap or category pages, and search product titles for the candidate names and their synonyms (as in Marshall et al. 2022, Code S01–S05); (2) per hit, store species, shop, URL, title, life stage, live/dead label, price, seller country and `ships_to`; (3) start with the 27 regulated candidates, then the rest; (4) add Finn.no, Norwegian hobby, ant-keeping and aquarium shops, and EU shops that ship to Norway. Output: `5_outputs/tables/species_by_website.xlsx`.
 - [ ] **Norwegian regulation:** Lovdata plant health regulation (forskrift om planter og tiltak mot planteskadegjørere), Artsdatabanken alien species list.
 - [ ] **EU lists:** Regulation 2019/2072 annexes and the Union-concern list as tables (partly covered through EPPO 9L categorization already).
 - [ ] **Host plants in Norway:** for phytophagous species without EPPO host data (e.g. *Papilio demoleus*), get host genera elsewhere (e.g. HOSTS database, literature) and check whether the hosts grow in Norway.
 - [ ] **Climate match** to Norway (e.g. Köppen zones of the native range).
-- [ ] **Tiering script** (`06_tier.R`): A–D from the list status, with modifiers for live evidence, ships to NO/EU, host availability and climate.
+- [ ] **Tiering script** (`07_tier.R`, using `2_processed_data/web_listings.csv` from the scraper): A–D from the list status, with modifiers for live evidence, ships to NO/EU, host availability and climate.
 - [ ] **Pathway / FinnPRIO export** (step 7).
 
 # Open questions
-- Which platforms are in scope, and does their terms of service allow scraping? Marshall Data S1 shows how they recorded this per site.
+- Which platforms are in scope? Marketplaces whose terms forbid scraping are skipped (list in `insect_scraper/config.py`); should any be checked by hand or through an official API?
 - Acceptable false-positive rate for extracting species names from listings?
 - Should lab/rearing imports (purpose S/M) be scored the same as pet trade in the tiers?

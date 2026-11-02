@@ -19,3 +19,6 @@ Paper PDFs are in `3_metadata/pdf/`: `Hughes_2026_wildlife_trade_data_gaps.pdf`,
 ## Reusable for listing collection (pipeline step 2)
 - Marshall 2022, Code S01–S05: finds sale websites through search engines, retrieves pages, generates species keywords from names and synonyms, then searches the pages for them. Data S1 holds the website list (URLs redacted), with flags for whether each site sells arachnids and whether it allows automated searching.
 - Wang 2023, GitHub `ButterflyTradeEbay`: eBay sold-listing scraper.
+
+## Web shops (own collection)
+- Collected with `insect_scraper/` from 2026-11-02: shop catalogues and product pages of online shops found by search (see README, section "Web scraper"). robots.txt obeyed, >= 1.5 s between requests per shop, marketplaces whose terms forbid automated collection skipped (`insect_scraper/config.py`). Only product data, shop domains and country codes are kept; no personal data. Results are not in git (`5_outputs/`, `2_processed_data/`).
