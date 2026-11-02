@@ -18,7 +18,11 @@ ACCESSORY_RX = re.compile(
     r"enclosure|terrarium|habitat kit|repellent|killer|trap|bait|insecticide|books?|"
     r"poster|sticker|shirt|mug|plush|toy|figure|dish|bowl|heat ?mat|thermometer|net|"
     r"incubator|cup ?lids?|deli ?cups?|gift card|futter|fôr|nourriture|comida|"
-    r"pokarm|bodengrund|substrat)\b", re.I)
+    r"pokarm|bodengrund|substrat|"
+    # pest-control products (traps, lures, pheromones, products "against" a pest)
+    r"pheromones?|ph[ée]romones?|pheromon\w*|feromon\w*|pi[èe]ges?|lures?|falle|fallen|"
+    r"felle|f[äa]lla|pułapk\w*|trampa|k[öo]der|appâts?|contre|against|gegen|anti[- ]\w+|"
+    r"bek[äa]mpf\w*|repuls\w*|r[ée]pulsif|bouclier|schutz|protection|monitoring)\b", re.I)
 CATEGORY_RX = re.compile(r"/collections?/(?!.*/products/)|/categor(y|ies)/|/product-category/|"
                          r"/c/|/kategori|/kategorie", re.I)
 

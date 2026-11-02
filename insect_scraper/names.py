@@ -37,7 +37,7 @@ GENERIC = {
     "tick", "spider", "gnat", "midge", "mantid", "phasmid", "katydid", "sawfly",
     "leafhopper", "planthopper", "thrip", "whitefly", "scale insect",
     "mealybug", "bumblebee", "honeybee", "honey bee", "silkmoth", "hawkmoth",
-    "skipper", "tropical white", "common", "giant", "black", "white", "red",
+    "skipper", "tropical white", "fire ant", "fire ants", "red ant", "black ant", "common", "giant", "black", "white", "red",
     "maur", "bille", "snegl", "sommerfugl", "ameise", "kafer", "schnecke",
     "schmetterling", "fourmi", "escargot", "papillon", "hormiga", "caracol",
 }
@@ -84,6 +84,19 @@ class NameIndex:
     genera: set[str] = field(default_factory=set)        # all known genera
     scope_genera: set[str] = field(default_factory=set)  # genera of in-scope species
     info: pd.DataFrame | None = None                          # per accepted name
+
+    _cues: set[str] | None = None
+
+    def quick(self, text: str | None) -> bool:
+        """Cheap pre-check: does the text contain any word that starts a name?"""
+        if self._cues is None:
+            cues = {k.split()[0] for k in self.scientific}
+            for k in self.common:
+                cues.update(w for w in k.split() if len(w) >= 5)
+                cues.update(s for w in k.split() for s in _singulars(w + "s") if len(s) >= 5)
+            self._cues = cues
+        words = norm(text).split()
+        return any(w in self._cues or w.rstrip("s") in self._cues for w in words)
 
     def find(self, text: str | None) -> list[tuple[str, str]]:
         """Return [(target, 'scientific name'|'common name'), ...]."""

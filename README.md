@@ -70,7 +70,8 @@ so later runs are fast and work offline.
 | 5 | `05_scope_life_state.R` | Plant-pest scope; live/dead/unknown per species from all evidence; merges synonyms by GBIF accepted name | `species_scope_state.csv`, `species_accepted_state.csv`, **`5_outputs/tables/plant_pest_candidates.csv`** |
 | 6 | **`insect_scraper/` (Python, see below)** | **Ties species to real sale pages**: shop discovery, full shop catalogues, name matching, live/dead, ships to Norway | **`5_outputs/tables/species_on_sale.xlsx`** |
 | (6) | `06_species_by_website.R` | Older, lighter R crawler (sitemap URLs only). Superseded by `insect_scraper/`; kept for reference | `5_outputs/tables/species_by_website.xlsx` |
-| 7 | *planned* `07_tier.R` | Tiers A–D (below) | |
+| 7 | `07_main_results.R` | **DRAFT main result:** one row per in-scope species with all evidence (EPPO/EU/NO lists, hosts, web shops, LEMIS, literature), draft tier A–D and a priority order. Tables only, no plots | **`5_outputs/insect_trade_main_DRAFT.xlsx`** |
+| 8 | `insect trade results.qmd` | **Presentation for the plant health panel** (Quarto reveal.js): figures and tables read from the main workbook. Render: `quarto render "insect trade results.qmd"` | `insect trade results.html` |
 
 APIs are called directly with `httr2`, without wrapper packages.
 

@@ -55,6 +55,35 @@ def write_report(shops: pd.DataFrame) -> None:
     shops_df = pd.DataFrame(shop_rows)
 
     listings = pd.DataFrame([p for r in res for p in r.get("products", [])])
+    # re-check common-name hits with the current rules (results saved by
+    # earlier crawls used older rules): drop when the title names another
+    # genus, or when the common name no longer matches (e.g. now generic)
+    if not listings.empty:
+        from .crawl import GENUS_RX
+
+        def keep(row):
+            if not str(row.get("match_type", "")).startswith("common"):
+                return True
+            other = {g for g in GENUS_RX.findall(str(row.get("title", ""))) if g in idx.genera}
+            if other and str(row["species"]).split()[0] not in other:
+                return False
+            text = f"{row.get('title', '')} {row.get('url', '')} {row.get('category', '')}"
+            return any(t == row["species"] for t, m in idx.find(text) if m == "common name")
+        listings = listings[listings.apply(keep, axis=1)]
+        # re-apply current page-type rules (e.g. pest-control products) and
+        # re-check "dead" labels that rest only on the plain word "dead"
+        from . import classify
+        is_prod = listings["page_type"].isin(["product", "accessory", "info"])
+        listings["page_type"] = [
+            classify.page_type(u, t, p) if pt != "page" else pt
+            for u, t, p, pt in zip(listings["url"].astype(str), listings["title"].astype(str),
+                                   is_prod, listings["page_type"])]
+        redo = listings["life_terms"].astype(str).str.fullmatch(r"dead:dead( ?; ?live:[^;]+)*")
+        for i in listings.index[redo]:
+            row = listings.loc[i]
+            st, te = classify.life_state(str(row["title"]), str(row.get("category", "")),
+                                         str(row["url"]).split("/", 3)[-1].replace("-", " "))
+            listings.at[i, "life_state"], listings.at[i, "life_terms"] = st, te
     if listings.empty:
         listings = pd.DataFrame(columns=["domain", "species", "match_type", "regulated", "url",
                                          "title", "page_type", "life_state", "price", "currency"])

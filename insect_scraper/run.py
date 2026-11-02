@@ -87,7 +87,17 @@ async def crawl_all(shops: pd.DataFrame, workers: int, refresh: bool) -> None:
                   f"{out.get('method',''):<20.20} hits {n:>4}  regulated {reg}  "
                   f"({(time.time()-t0)/60:.0f} min, {f.requests} requests)", flush=True)
 
+    async def heartbeat():
+        # one line a minute, so a stall is visible in the log
+        while True:
+            await asyncio.sleep(60)
+            active = len(list(RESULTS_DIR.glob("*.lock")))
+            print(f"  .. {time.strftime('%H:%M')} done {done}/{len(todo)} | {f.requests} requests | "
+                  f"{active} shops in progress (all jobs)", flush=True)
+
+    hb = asyncio.create_task(heartbeat())
     await asyncio.gather(*(one(r) for r in todo))
+    hb.cancel()
     await f.close()
 
 

@@ -28,6 +28,7 @@ MAX_SITEMAPS = 40        # sitemap files read per shop
 MAX_PRODUCT_PAGES = 1500  # product pages fetched per shop (generic shops)
 MAX_BFS_PAGES = 300      # pages fetched in a link crawl (shops without sitemap)
 MAX_INFO_PAGES = 6       # shipping / imprint pages per shop
+SHOP_TIME_BUDGET = 45 * 60  # seconds per shop; results so far are kept
 
 # Marketplaces and big retailers whose terms forbid automated collection, or
 # that are not insect shops. Listed in the report as skipped.

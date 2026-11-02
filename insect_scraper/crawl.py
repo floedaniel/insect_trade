@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlsplit
 
@@ -35,7 +36,7 @@ NOT_EPITHET = {
     "stk", "und", "mit", "der", "die", "das", "och", "med", "til", "les", "des",
 }
 # genus mentions incl. "Collembola sp." (for the other-genus check)
-GENUS_RX = re.compile(r"\b([A-Z][a-z]{2,})\s(?:spp?\.?|[a-z]{3,})(?=\W|$)")
+GENUS_RX = re.compile(r"\b([A-Z][a-z]{2,})\s(?:spp?\.?|[A-Za-z][a-z]{2,})(?=\W|$)")  # "Myrmica Rubra" too
 
 
 @dataclass
@@ -125,11 +126,30 @@ async def _sitemap_urls(f: Fetcher, base: str, host: str) -> list[tuple[str, str
     return urls
 
 
-async def _link_crawl(f: Fetcher, base: str, host: str, start: list[str]) -> list[tuple[str, str]]:
+SKIP_LINK_RX = re.compile(
+    r"\.(jpe?g|png|gif|pdf|zip|webp|svg|mp4)$|mailto:|tel:|javascript:|"
+    r"/(cart|basket|checkout|kasse|panier|warenkorb|handlekurv|varukorg|koszyk|carrito|"
+    r"account|login|logout|signin|sign-in|register|registrer|authentification|connexion|"
+    r"anmelden|logg-inn|mon-compte|mein-konto|min-side|wishlist|compare|vergleich|"
+    r"my-account|customer|kunde|password|passord)\b", re.I)
+
+
+def _clean_link(href: str) -> str | None:
+    """Drop traps: login/cart pages, long URLs, query strings (except paging)."""
+    if not href or SKIP_LINK_RX.search(href) or len(href) > 250:
+        return None
+    parts = urlsplit(href)
+    keep = [q for q in parts.query.split("&")
+            if re.match(r"^(page|p|pg|seite|side|sida|pagina|strona)=\d{1,4}$", q, re.I)]
+    return parts._replace(query="&".join(keep), fragment="").geturl()
+
+
+async def _link_crawl(f: Fetcher, base: str, host: str, start: list[str],
+                      deadline: float = float("inf")) -> list[tuple[str, str]]:
     """Breadth-first crawl of same-site pages, insect-looking links first."""
-    queue = list(dict.fromkeys(start))
+    queue = [u for u in (_clean_link(x) for x in start) if u]
     seen, found = set(), {}
-    while queue and len(seen) < config.MAX_BFS_PAGES:
+    while queue and len(seen) < config.MAX_BFS_PAGES and time.monotonic() < deadline:
         url = queue.pop(0)
         if url in seen:
             continue
@@ -143,9 +163,8 @@ async def _link_crawl(f: Fetcher, base: str, host: str, start: list[str]) -> lis
             continue
         hot, cold = [], []
         for a in doc.xpath("//a[@href]"):
-            href = urljoin(url, a.get("href").split("#")[0])
-            if urlsplit(href).netloc.removeprefix("www.") != host.removeprefix("www.") or \
-                    re.search(r"\.(jpg|png|gif|pdf|zip|webp)$|/cart|/account|/login|mailto:", href, re.I):
+            href = _clean_link(urljoin(url, a.get("href").split("#")[0]))
+            if not href or urlsplit(href).netloc.removeprefix("www.") != host.removeprefix("www."):
                 continue
             text = " ".join(a.text_content().split())[:150]
             found.setdefault(href, text)
@@ -193,8 +212,11 @@ def _rows(prod: extract.Product, idx: NameIndex, domain: str, platform: str,
     seen = {h[0] for h in hits}
     hits += [(s, "scientific name (description)") for s, _ in desc_hits if s not in seen]
     ptype = classify.page_type(prod.url, prod.title, prod.is_product)
+    # plain "dead" in a description is usually care text ("remove dead
+    # snails"); strong dead terms (pinned, mounted, specimen ...) still count
+    desc = re.sub(r"\b(dead|d[øo]d|tot|mort|muerto|martwy)\b", " ", prod.description[:400], flags=re.I)
     state, terms = classify.life_state(_clean_life_text(
-        f"{prod.title} {prod.category} {slug} {prod.description[:400]}"))
+        f"{prod.title} {prod.category} {slug} {desc}"))
     rows = []
     for species, mtype in hits:
         # common-name hit, but the title names a different known genus
@@ -221,8 +243,10 @@ def _rows(prod: extract.Product, idx: NameIndex, domain: str, platform: str,
     return rows, new
 
 
-async def crawl_shop(f: Fetcher, idx: NameIndex, domain: str, found_url: str = "") -> ShopResult:
+async def crawl_shop(f: Fetcher, idx: NameIndex, domain: str, found_url: str = "",
+                     budget_s: float = config.SHOP_TIME_BUDGET) -> ShopResult:
     res = ShopResult(domain=domain)
+    deadline = time.monotonic() + budget_s
     why = _skip_reason(domain)
     if why:
         res.status = f"skipped: {why}"
@@ -251,6 +275,9 @@ async def crawl_shop(f: Fetcher, idx: NameIndex, domain: str, found_url: str = "
     # 1. platform catalogue APIs
     if res.platform == "shopify":
         for page in range(1, config.MAX_API_PAGES + 1):
+            if time.monotonic() > deadline:
+                res.status = "ok (time limit)"
+                break
             r = await f.get(f"{base}/products.json?limit=250&page={page}")
             if not r.ok:
                 break
@@ -292,7 +319,8 @@ async def crawl_shop(f: Fetcher, idx: NameIndex, domain: str, found_url: str = "
         urls = await _sitemap_urls(f, base, host)
         res.method = "sitemap"
         if not urls:
-            urls = await _link_crawl(f, base, host, [base + "/"] + ([found_url] if found_url else []))
+            urls = await _link_crawl(f, base, host, [base + "/"] + ([found_url] if found_url else []),
+                                     deadline)
             res.method = "link crawl"
         res.n_catalogue = len(urls)
 
@@ -301,7 +329,8 @@ async def crawl_shop(f: Fetcher, idx: NameIndex, domain: str, found_url: str = "
             slug = re.sub(r"^https?://[^/]+", "", url)
             if classify.INFO_RX.search(slug):
                 return 4
-            if idx.find(f"{re.sub(r'[-_/]', ' ', slug)} {text}"):
+            t = f"{re.sub(r'[-_/]', ' ', slug)} {text}"
+            if idx.quick(t) and idx.find(t):       # cheap check first (huge sitemaps)
                 return 0
             if INSECT_RX.search(f"{slug} {text}"):
                 return 1
@@ -318,6 +347,9 @@ async def crawl_shop(f: Fetcher, idx: NameIndex, domain: str, found_url: str = "
         fetched = 0
         for url, text, p in scored:
             if fetched >= config.MAX_PRODUCT_PAGES or p > max_prio:
+                break
+            if time.monotonic() > deadline:
+                res.status = "ok (time limit)"
                 break
             r = await f.get(url)
             fetched += 1

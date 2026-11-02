@@ -116,3 +116,34 @@ def test_one_word_common_name_rule():
     from insect_scraper.names import ONE_WORD_OK
     assert ONE_WORD_OK.search("superworm") and ONE_WORD_OK.search("waxworm")
     assert not ONE_WORD_OK.search("soldier") and not ONE_WORD_OK.search("leopard")
+
+
+def test_clean_link_avoids_crawler_traps():
+    from insect_scraper.crawl import _clean_link
+    assert _clean_link("https://s.fr/authentification?back=https%3A%2F%2Fs.fr%2Fauthentification") is None
+    assert _clean_link("https://s.de/warenkorb") is None
+    assert _clean_link("https://s.fr/insectes?page=2&sort=price&utm=x") == "https://s.fr/insectes?page=2"
+    assert _clean_link("https://s.fr/insectes?id_lang=1") == "https://s.fr/insectes"
+
+
+def test_other_genus_with_capitalised_epithet():
+    i = idx()
+    i.common["european fire ant"] = "Solenopsis invicta"   # deliberately wrong target
+    i.genera.add("Myrmica")
+    p = extract.Product(url="https://x.com/products/myrmica", title="Ant colony Myrmica Rubra - European fire ant")
+    rows, _ = _rows(p, i, "x.com", "shopify")
+    assert rows == []
+
+
+def test_pest_control_products_are_accessories():
+    assert classify.page_type("https://x.fr/86-piege-pheromone-charancon", "Piège à phéromone pour charançon rouge du palmier", True) == "accessory"
+    assert classify.page_type("https://x.fr/606-nematodes-contre", "Nématodes contre le charançon rouge du palmier", True) == "accessory"
+    assert classify.page_type("https://x.fr/frelons/596", "Bouclier Anti-Frelon Asiatique", True) == "accessory"
+    assert classify.page_type("https://x.co.uk/golden-apple-snail.html", "Golden Apple Snail", True) == "product"
+
+
+def test_dead_in_description_is_not_dead_label():
+    p = extract.Product(url="https://x.co.uk/golden-apple-snail.html", title="Golden Apple Snail",
+                        description="Remove any dead snails quickly. Live arrival.", category="Inverts")
+    rows, _ = _rows(p, NameIndex(common={"golden apple snail": "Pomacea canaliculata"}), "x.co.uk", "other")
+    assert rows and rows[0]["life_state"] == "live"
