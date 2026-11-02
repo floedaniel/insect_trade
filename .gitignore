@@ -51,3 +51,9 @@ insect_trade_results.csv
 .Rhistory
 *.sqlite
 *.fst
+
+# Claude Code (local only)
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+.mcp.json
