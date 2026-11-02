@@ -50,7 +50,9 @@ _LIVE = [
     r"eggs?", r"ova\b", r"ootheca\w*", r"larva[e]?", r"larvae", r"grubs?",
     r"caterpillars?", r"pupa[e]?", r"chrysalis\w*", r"cocoons?", r"nymphs?",
     r"\bL[1-5]\b", r"colon(y|ies)", r"queens?", r"brood", r"feeders?",
-    r"breeding", r"captive bred", r"\bCB\b",
+    r"breeding", r"captive bred", r"\bCB\b", r"live food", r"feeder insects?",
+    r"fôrdyr", r"fôrinsekt\w*", r"futterinsekt\w*", r"futtertier\w*",
+    r"voederdier\w*",
     # NO / SV / DA
     r"levende", r"levande", r"egg\b", r"ägg", r"æg", r"larver?", r"larv\b",
     r"pupper?", r"puppor", r"kokong\w*", r"nymfer?", r"koloni\w*",

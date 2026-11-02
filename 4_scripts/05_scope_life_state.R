@@ -49,6 +49,13 @@ sp <- bind_rows(art, lem_only) |>
             by = "name") |>
   mutate(lemis_class = coalesce(lemis_class, lemis_class_live)) |>
   select(-lemis_class_live) |>
+  # purpose (T commercial, S scientific, M biomedical, P personal, Z zoo ...)
+  # and years of live imports, from step 02
+  left_join(lem_live |> select(name, lemis_live_purpose = purpose,
+                               lemis_live_years = first_year,
+                               lemis_live_last = last_year),
+            by = "name", suffix = c(".x", "")) |>
+  select(-any_of(c("lemis_live_years.x"))) |>
   # EPPO GDAPI summary per code (step 03), covers LEMIS-only codes too
   left_join(rd("eppo_code_summary.csv"), by = "eppocode") |>
   # GBIF backbone (step 04)
@@ -59,7 +66,9 @@ sp <- bind_rows(art, lem_only) |>
             by = "name")
 
 # --- 2. Lassaline 2025: reported use -> life state ---------------------------
-live_use <- "pet|biocontrol|exhibit|pollinat|honey|brood|aquarium|tank cleaner"
+# Food counts as live only for live feeders ("pet food"). Plain "food" (mostly
+# human food) stays unknown because the source doesn't say live or processed.
+live_use <- "pet|biocontrol|exhibit|pollinat|honey|brood|aquarium|tank cleaner|pet food|feeder"
 las <- readxl::read_excel(
   raw("lassaline2025_sciencedirect", "1-s2.0-S0006320725003039-mmc4.xlsx"),
   sheet = 1) |>
@@ -82,11 +91,8 @@ wang <- read_csv(raw("wang2023_zenodo_7825674", "Supplementary_Material_2.csv"),
 # --- 4. LEMIS: all forms per species (live / dead / unspecified) -------------
 live_codes <- c("LIV", "EGL", "DEA")
 unk_codes  <- c("UNS", "non-standard value")
-lem <- fst::read_fst(raw("eskew2020_lemis_github", "lemis.fst"),
-                     columns = c("control_number", "genus", "species",
-                                 "description", "import_export")) |>
-  filter(import_export == "I", !is.na(genus), !is.na(species)) |>
-  mutate(name = paste(str_squish(genus), str_squish(species))) |>
+# invertebrate import records 2000-2022, all forms (written by step 02)
+lem <- fst::read_fst(proc("lemis_invert_all_forms.fst")) |>
   filter(name %in% sp$name)
 
 lem_state <- lem |>
@@ -173,7 +179,10 @@ sp <- sp |>
            \(x) coalesce(x, 0L)),
     las_live = coalesce(las_live, FALSE), las_dead = coalesce(las_dead, FALSE),
     live_evidence = paste_nonempty(
-      if_else(lemis_live_n > 0, sprintf("LEMIS live imports (%d shipments)", lemis_live_n), ""),
+      if_else(lemis_live_n > 0,
+              sprintf("LEMIS live US imports (%d shipments, %s-%s, purpose %s)",
+                      lemis_live_n, lemis_live_years, lemis_live_last,
+                      coalesce(lemis_live_purpose, "?")), ""),
       if_else(las_live, paste0("Lassaline use: ", lassaline_use), "")),
     dead_evidence = paste_nonempty(
       if_else(wang_dead_sales > 0, sprintf("pinned/papered specimens, eBay 2022 (%d sales, Wang)", wang_dead_sales), ""),
@@ -193,6 +202,20 @@ sp <- sp |>
       TRUE ~ "unknown"))
 
 # --- 8. Write ------------------------------------------------------------------
+# Whole-genus listings (step 03): apply only when there is no species code
+genus_file <- proc("eppo_genus_summary.csv")
+if (file.exists(genus_file)) {
+  sp <- sp |>
+    left_join(rd("eppo_genus_summary.csv") |>
+                select(genus_eppocode, genus_regulated, genus_eppo_list,
+                       genus_eu_list, genus_no_list),
+              by = "genus_eppocode") |>
+    mutate(genus_regulated = is.na(eppocode) & coalesce(genus_regulated, FALSE))
+} else {
+  sp <- sp |> mutate(genus_regulated = FALSE, genus_eppo_list = NA,
+                     genus_eu_list = NA, genus_no_list = NA)
+}
+
 sp <- sp |>
   relocate(name, in_hughes, class, order, pest_group, in_scope, life_state,
            live_evidence, unknown_evidence, dead_evidence, lassaline_use,
@@ -208,7 +231,14 @@ first_val    <- \(x) first(na.omit(x))
 # live record under one name is not hidden by a dead record under another.
 acc <- sp |>
   mutate(accepted_name = coalesce(gbif_accepted, name),
-         regulated = regulated(pick(everything())),
+         regulated_species = regulated(pick(everything())),
+         regulated = regulated_species | genus_regulated,
+         regulated_via = case_when(regulated_species ~ "species",
+                                   genus_regulated ~ "genus listing"),
+         # show genus lists where the species has none of its own
+         eppo_list = coalesce(eppo_list, genus_eppo_list),
+         eu_list = coalesce(eu_list, genus_eu_list),
+         no_list = coalesce(no_list, genus_no_list),
          categorized = coalesce(n_categorizations, 0) > 0) |>
   arrange(accepted_name, is.na(eppocode), desc(in_hughes)) |>
   group_by(accepted_name) |>
@@ -220,7 +250,8 @@ acc <- sp |>
                            any(life_state == "unknown") ~ "unknown",
                            TRUE ~ "dead"),
     across(c(live_evidence, unknown_evidence, dead_evidence), collapse_txt),
-    regulated = any(regulated), categorized = any(categorized),
+    regulated = any(regulated), regulated_via = first_val(regulated_via),
+    categorized = any(categorized),
     across(c(class, order, eppocode, eppo_list, eu_list, no_list, no_status,
              n_categorizations, n_hosts, hosts), first_val),
     in_hughes = any(in_hughes), .groups = "drop")
@@ -232,6 +263,7 @@ cand <- acc |>
           desc(coalesce(n_hosts, 0)), accepted_name) |>
   select(accepted_name, names, pest_group, class, order, life_state,
          live_evidence, unknown_evidence, dead_evidence, eppocode, regulated,
+         regulated_via,
          eppo_list, eu_list, no_list, no_status, n_categorizations, n_hosts,
          hosts, in_hughes)
 dir.create(here::here("5_outputs", "tables"), showWarnings = FALSE,

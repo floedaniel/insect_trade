@@ -93,7 +93,26 @@ m_binom <- art |>
   inner_join(eppo_best, by = c("key_binom" = "key")) |>
   mutate(match_type = "binomial_of_trinomial")
 
-matched <- bind_rows(m_exact, m_binom)
+# Binomial that EPPO only lists as its nominate subspecies, e.g.
+# "Diabrotica virgifera" -> "Diabrotica virgifera virgifera"
+m_nominate <- art |>
+  filter(!name %in% c(m_exact$name, m_binom$name), n_words == 2) |>
+  mutate(key_nom = paste(key, word(key, 2))) |>
+  inner_join(eppo_best, by = c("key_nom" = "key")) |>
+  select(-key_nom) |>
+  mutate(match_type = "nominate_subspecies")
+
+matched <- bind_rows(m_exact, m_binom, m_nominate)
+
+# Synonym matches rejected after manual review (3_metadata/synonym_review.csv):
+# names that Catalogue of Life treats as separate species from the EPPO name.
+review_file <- here::here("3_metadata", "synonym_review.csv")
+if (file.exists(review_file)) {
+  rejected <- read_csv(review_file, show_col_types = FALSE) |>
+    filter(verdict == "reject") |> pull(name)
+  matched <- matched |> filter(!name %in% rejected)
+  cat(sprintf("Synonym matches rejected after review: %d\n", length(rejected)))
+}
 
 # Genus-level hit for names with no species match (useful for tier C later)
 genus_codes <- eppo_names |>

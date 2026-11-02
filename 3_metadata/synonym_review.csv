@@ -1,12 +1,12 @@
 match_type,name,eppocode,eppo_name,gbif_accepted,verdict,note
 synonym,Acusta despecta,ACUSDE,Bradybaena despecta,Acusta despecta,"ok: same species, genus/name change (EPPO name outdated)",
-synonym,Agrilus acutus,AGRLAC,Agrilus setipes,Agrilus acutus,check,Synonymy with A. setipes unclear
+synonym,Agrilus acutus,AGRLAC,Agrilus setipes,Agrilus acutus,reject,Catalogue of Life (checked 2026-11-02): both names accepted as separate species. EPPO code not used.
 binomial_of_trinomial,Apatura ilia metis,APTUIL,Apatura ilia,Apatura ilia,ok: same name in GBIF,
-synonym,Blaberus craniifer,BLABFU,Blaberus fuscus,Blaberus craniifer,check,Often kept separate from B. fuscus in the pet trade and in the literature
+synonym,Blaberus craniifer,BLABFU,Blaberus fuscus,Blaberus craniifer,reject,Catalogue of Life (checked 2026-11-02): both names accepted as separate species; B. fuscus not listed at species level. EPPO code not used.
 synonym,Bombus pascuorum,BOMUAG,Bombus agrorum,Bombus pascuorum,"ok: same species, genus/name change (EPPO name outdated)",
 binomial_of_trinomial,Caligo teucer suzanna,CALITE,Caligo teucer,Caligo teucer,ok: same name in GBIF,
 binomial_of_trinomial,Callophrys rubi caerulescens,CAOHRU,Callophrys rubi,Callophrys rubi,ok: same name in GBIF,
-synonym,Camponotus nigriceps,CAMOCO,Camponotus consobrinus,Camponotus nigriceps,check,Separate valid species in current ant taxonomy; EPPO lumps it with C. consobrinus
+synonym,Camponotus nigriceps,CAMOCO,Camponotus consobrinus,Camponotus nigriceps,reject,Catalogue of Life (checked 2026-11-02): both names accepted as separate species. EPPO code not used.
 binomial_of_trinomial,Charaxes jasius epijasius,CHAXJA,Charaxes jasius,Charaxes jasius,ok: same name in GBIF,
 binomial_of_trinomial,Charaxes jasius saturnus,CHAXJA,Charaxes jasius,Charaxes jasius,ok: same name in GBIF,
 synonym,Clossiana euphrosyne,CLSSEU,Boloria euphrosyne,Clossiana euphrosyne,"ok: same species, genus/name change (EPPO name outdated)",
@@ -43,8 +43,8 @@ binomial_of_trinomial,Mellicta athalia caucasogenita,MLLTAT,Mellicta athalia,Mel
 binomial_of_trinomial,Mellicta athalia celadussa,MLLTAT,Mellicta athalia,Mellicta athalia,ok: same name in GBIF,
 synonym,Mimela splendens,ANMLSL,Anomala splendens,Mimela splendens,"ok: same species, genus/name change (EPPO name outdated)",
 synonym,Odontotaenius disjunctus,ODOADI,Popilius disjunctus,Odontotaenius disjunctus,"ok: same species, genus/name change (EPPO name outdated)",
-synonym,Oxya japonica,OXYXYE,Oxya yezoensis,Oxya japonica,check,O. yezoensis is usually treated as a valid species of its own
-synonym,Oxycarenus lugubris,OXYALA,Oxycarenus laetus,Oxycarenus lugubris,check,Synonymy with O. laetus disputed
+synonym,Oxya japonica,OXYXYE,Oxya yezoensis,Oxya japonica,reject,Catalogue of Life (checked 2026-11-02): both names accepted as separate species. EPPO code not used.
+synonym,Oxycarenus lugubris,OXYALA,Oxycarenus laetus,Oxycarenus lugubris,reject,Catalogue of Life (checked 2026-11-02): both names accepted as separate species. EPPO code not used.
 binomial_of_trinomial,Paederus fuscipes fuscipes,PAEDFU,Paederus fuscipes,Paederus fuscipes,ok: same name in GBIF,
 synonym,Papilio polyxenes,PAPIAJ,Papilio ajax,Papilio polyxenes,"ok: same species, genus/name change (EPPO name outdated)",
 synonym,Pelopidas thrax,ERNTTH,Erionota thrax,Pelopidas thrax,"ok: same species, genus/name change (EPPO name outdated)",

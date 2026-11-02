@@ -1,13 +1,17 @@
 # 02_lemis_live.R
-# Live invertebrate imports into the US, 2000-2014, from LEMIS
-# (Eskew et al. 2020, Sci. Data; data release eveskew/lemis v1.1.0, lemis.fst).
+# Live invertebrate imports into the US, 2000-2022, from LEMIS as corrected by
+# Marshall et al. 2025 (PNAS 122:e2410774121; figshare
+# doi:10.6084/m9.figshare.25041584, lemisDataCorrected_2023-11-11.csv.gz).
+# Pre-2014 records are the Eskew et al. 2020 data; names are corrected
+# (`corrected`, `rank`), with a broad group (`group_`).
 # Only live trade matters for plant pests, so keep description codes:
 #   LIV = live specimens, EGL = live eggs, DEA = shipped live, died in transit
-# Company name fields (us_co, foreign_co) are not read.
+# No company fields exist in this file.
 #
 # Outputs (2_processed_data/):
-#   lemis_live_species.csv     one row per LEMIS species with live imports
-#   article_eppo_lemis.csv     step-01 table + live flags
+#   lemis_invert_all_forms.fst  invertebrate import records, all forms (step 05)
+#   lemis_live_species.csv      one row per LEMIS species with live imports
+#   article_eppo_lemis.csv      step-01 table + live flags
 
 library(dplyr)
 library(readr)
@@ -16,30 +20,46 @@ library(tidyr)
 library(DBI)
 library(RSQLite)
 
-lemis_file <- here::here("1_raw_data", "eskew2020_lemis_github", "lemis.fst")
+lemis_file <- here::here("1_raw_data", "marshall2025_figshare_25041584",
+                         "lemisDataCorrected_2023-11-11.csv.gz")
 proc_dir   <- here::here("2_processed_data")
 db_path    <- here::here("1_raw_data", "eppo db", "eppocodes.sqlite")
 
 live_codes <- c("LIV", "EGL", "DEA")
-drop_taxa  <- c("fish", "reptile", "amphibian", "bird", "mammal", "plant",
-                "coral")
+# Marshall `group_` values that are not invertebrates
+drop_groups <- c("Terrestrial Mammals", "Marine Mammals", "Birds", "Reptiles",
+                 "Amphibians", "Fish", "Plants", "Echinoderms and Cnidaria",
+                 "Porifera Sponges, Bryozoa, and Squirts")
 
 # --- 1. Read and filter --------------------------------------------------------
-cols <- c("control_number", "taxa", "class", "genus", "species", "subspecies",
-          "description", "quantity", "unit", "country_origin",
-          "country_imp_exp", "purpose", "source", "action", "shipment_year",
-          "import_export")
-lem <- fst::read_fst(lemis_file, columns = cols)
-cat(sprintf("LEMIS records: %d\n", nrow(lem)))
+cols <- c("control_number", "description", "quantity", "unit",
+          "country_origin", "country_imp_exp", "purpose", "source", "action",
+          "import_export", "sYear", "corrected", "rank", "group_",
+          "orderCorrected")
+lem <- read_csv(lemis_file, col_select = all_of(cols),
+                col_types = cols(.default = "c"), progress = FALSE) |>
+  mutate(quantity = suppressWarnings(as.numeric(quantity)),
+         shipment_year = as.integer(sYear),
+         across(c(country_origin, country_imp_exp), \(x) str_remove(x, "^Ctry_")))
+cat(sprintf("LEMIS records 2000-2022: %d\n", nrow(lem)))
 
-live <- lem |>
-  filter(import_export == "I", description %in% live_codes,
-         !taxa %in% drop_taxa) |>
-  mutate(genus = str_squish(genus), species = str_squish(species),
-         species_ok = !is.na(genus) & !is.na(species) &
-           !str_detect(species, "^(sp|spp)\\.?$|non-standard"),
-         name = if_else(species_ok, paste(genus, species), NA_character_))
+inv <- lem |>
+  filter(import_export == "I", !group_ %in% drop_groups) |>
+  mutate(species_ok = rank %in% "Species" & !is.na(corrected) &
+           corrected != "REMAINS UNKNOWN",
+         name = if_else(species_ok, word(str_squish(corrected), 1, 2),
+                        NA_character_),
+         lemis_class = case_when(group_ == "Lepidoptera" ~ "Insecta",
+                                 group_ == "Arachnids" ~ "Arachnida"))
 rm(lem)
+
+# all forms (live, dead, products, unspecified) for the life-state step
+fst::write_fst(inv |> filter(species_ok) |>
+                 select(name, control_number, description, shipment_year),
+               file.path(proc_dir, "lemis_invert_all_forms.fst"))
+
+live <- inv |> filter(description %in% live_codes)
+rm(inv)
 
 cat(sprintf("Live invertebrate import records: %d (%d with species name)\n",
             nrow(live), sum(live$species_ok)))
@@ -56,8 +76,9 @@ sp <- live |>
   filter(species_ok) |>
   group_by(name) |>
   summarise(
-    lemis_taxa = first(taxa),
-    lemis_class = first(na.omit(class)),
+    lemis_group = first(group_),
+    lemis_order = first(na.omit(orderCorrected)),
+    lemis_class = first(na.omit(lemis_class)),
     n_records = n(),
     n_shipments = n_distinct(control_number),
     n_cleared = n_distinct(control_number[action == "C"]),
@@ -114,8 +135,8 @@ art_live <- art |>
 write_csv(art_live, file.path(proc_dir, "article_eppo_lemis.csv"), na = "")
 
 # --- 5. Short report -----------------------------------------------------------
-cat(sprintf("\nSpecies with live imports: %d (insects: %d)\n", nrow(sp),
-            sum(sp$lemis_class %in% "Insecta")))
+cat(sprintf("\nSpecies with live imports: %d\n", nrow(sp)))
+print(as.data.frame(count(sp, lemis_group, sort = TRUE)))
 cat(sprintf("  with EPPO code: %d\n", sum(!is.na(sp$lemis_eppocode))))
 cat(sprintf("Article names: %d, of which live in LEMIS: %d (insects: %d)\n",
             nrow(art_live), sum(art_live$lemis_live),
@@ -126,12 +147,12 @@ cat(sprintf("Article 'LEMIS' flag = 1 but no live record: %d\n",
             sum(art_live$LEMIS == 1 & !art_live$lemis_live, na.rm = TRUE)))
 
 cat("\nTop live insect species by shipments:\n")
-sp |> filter(lemis_class %in% "Insecta") |>
+sp |> filter(lemis_group %in% c("Lepidoptera", "Insecta and Myriapoda")) |>
   select(name, n_shipments, qty_live, qty_eggs, n_years, origin_top,
          lemis_eppocode) |>
   head(25) |> as.data.frame() |> print()
 
 cat("\nLive species with an EPPO code:\n")
 sp |> filter(!is.na(lemis_eppocode)) |>
-  select(name, lemis_class, n_shipments, qty_live, lemis_eppocode) |>
+  select(name, lemis_group, n_shipments, qty_live, lemis_eppocode) |>
   as.data.frame() |> print()

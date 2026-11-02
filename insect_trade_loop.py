@@ -282,7 +282,8 @@ def save_xlsx(all_rows: list):
     hfill = PatternFill("solid", start_color="1F4E79")
     hfont = Font(bold=True, color="FFFFFF", name="Arial", size=10)
     for ci, h in enumerate(
-        ["Domain", "URL", "Title", "Snippet", "Query", "Engine", "Date", "Run ID"], 1
+        ["Domain", "URL", "Title", "Snippet", "Query", "Engine", "Date", "Run ID",
+         "Life state", "Life terms"], 1
     ):
         cell = ws.cell(row=1, column=ci, value=h)
         cell.font = hfont
@@ -297,7 +298,7 @@ def save_xlsx(all_rows: list):
             if ri % 2 == 0:
                 cell.fill = PatternFill("solid", start_color="D6E4F0")
 
-    for ci, w in enumerate([28, 55, 45, 60, 40, 10, 12, 14], 1):
+    for ci, w in enumerate([28, 55, 45, 60, 40, 10, 12, 14, 11, 30], 1):
         ws.column_dimensions[ws.cell(row=1, column=ci).column_letter].width = w
 
     ws.freeze_panes = "A2"

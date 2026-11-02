@@ -46,8 +46,7 @@ so later runs are fast and work offline.
    ```
    EPPO_API_KEY=your_token
    ```
-   Script 03 also falls back to a local key file (path set at the top of the
-   script).
+   Script 03 reads only this variable.
 3. **EPPO codes database.** Download the SQLite version of the EPPO codes from
    <https://data.eppo.int> to `1_raw_data/eppo db/eppocodes.sqlite`.
 
@@ -58,7 +57,7 @@ so later runs are fast and work offline.
 | Step | Script | Does | Output (`2_processed_data/` unless noted) |
 |---|---|---|---|
 | 1 | `01_match_article_eppo.R` | Matches the Hughes et al. 2026 names (inverts + Lepidoptera) to EPPO codes by **exact name or synonym** (no code guessing). Adds EPPO taxonomy | `article_eppo_match.csv` |
-| 2 | `02_lemis_live.R` | Live US imports 2000–2014 (LEMIS codes `LIV`, `EGL`, `DEA`), per species: shipments, individuals, years, origin countries | `lemis_live_species.csv`, `article_eppo_lemis.csv` |
+| 2 | `02_lemis_live.R` | Live US imports 2000–2022 (Marshall et al. 2025 corrected LEMIS) (LEMIS codes `LIV`, `EGL`, `DEA`), per species: shipments, individuals, years, origin countries | `lemis_live_species.csv`, `article_eppo_lemis.csv` |
 | 3 | `03_eppo_gdapi.R` | EPPO GDAPI v2 for all matched codes: categorization (A1/A2, EU, national lists), host plants, distribution. Prints a counter | `eppo_code_summary.csv`, `eppo_categorization.csv`, `eppo_hosts.csv`, `eppo_distribution.csv` |
 | 4 | `04_gbif_names.R` | GBIF backbone match for class/order and accepted names (synonyms) | `gbif_names.csv` |
 | 5 | `05_scope_life_state.R` | Plant-pest scope; live/dead/unknown per species from all evidence; merges synonyms by GBIF accepted name | `species_scope_state.csv`, `species_accepted_state.csv`, **`5_outputs/tables/plant_pest_candidates.csv`** |
@@ -73,8 +72,9 @@ Each species gets one label from all the evidence we have:
 | Evidence | Live | Dead | Unknown form |
 |---|---|---|---|
 | LEMIS (US imports) | `LIV`, `EGL`, `DEA` (died in transit) | bodies, specimens, shells, jewellery, products | `UNS` (unspecified) |
-| Lassaline et al. 2025 (`reported_use`) | pet, biocontrol, pollination, honey, exhibit, aquarium | collection | food, medical, venom, … |
+| Lassaline et al. 2025 (`reported_use`) | pet, pet food (live feeders), biocontrol, pollination, honey, exhibit, aquarium | collection | food (human food, form unclear), medical, venom, … |
 | Wang et al. 2023 (eBay butterflies) | n/a | all sales (papered/mounted specimens) | n/a |
+| Listings (`life_state.py`) | live, eggs, larvae, pupae, colony, live food, feeder insects, … | pinned, papered, mounted, ex pupa, … | no terms |
 | Hughes et al. 2026 flags | n/a | n/a | all flags (they don't say live or dead) |
 
 Rule: **live** if any live evidence; otherwise **unknown** if any evidence of
@@ -137,7 +137,8 @@ details are in [`3_metadata/data_sources.md`](3_metadata/data_sources.md).
 | Lassaline et al. 2025, *Biol. Conserv.* 308:111266: terrestrial invertebrate trade review (`mmc4.xlsx`) | `lassaline2025_sciencedirect/` | Supplementary data at doi:10.1016/j.biocon.2025.111266 |
 | Wang et al. 2023, *Biol. Conserv.* 283:110092: eBay butterfly sales 2022 | `wang2023_zenodo_7825674/` | Zenodo doi:10.5281/zenodo.7825674 |
 | Marshall et al. 2022, *Commun. Biol.* 5:448: arachnid web trade, R scraping code | `marshall2022_zenodo_5758541/` | Zenodo doi:10.5281/zenodo.5758541 |
-| LEMIS 2000–2014 (Eskew et al. 2020, *Sci. Data*) | `eskew2020_lemis_github/lemis.fst` | github.com/eveskew/lemis, release v1.1.0 |
+| LEMIS 2000–2022, corrected (Marshall et al. 2025, *PNAS* 122:e2410774121) | `marshall2025_figshare_25041584/lemisDataCorrected_2023-11-11.csv.gz` | figshare doi:10.6084/m9.figshare.25041584 (CC BY 4.0) |
+| LEMIS 2000–2014 (Eskew et al. 2020, *Sci. Data*), older version, no longer used by the pipeline | `eskew2020_lemis_github/lemis.fst` | github.com/eveskew/lemis, release v1.1.0 |
 | EPPO codes | `eppo db/eppocodes.sqlite` | data.eppo.int |
 | EPPO Global Database | API (cached) | api.eppo.int/gd/v2 (token) |
 | GBIF backbone | API (cached) | api.gbif.org/v1/species/match |
@@ -159,19 +160,22 @@ Trade_notes.Rmd      running notes: status, findings, to-do
 See [`Trade_notes.Rmd`](Trade_notes.Rmd) for current numbers, findings and the
 to-do list. In short (November 2026):
 
-- 10,851 species (after merging synonyms) → **3,408 candidates** in scope and
+- 10,867 species (after merging synonyms) → **2,379 candidates** in scope and
   traded live or in unknown form.
-- Regulated plant pests with **live** trade: pet ants *Solenopsis invicta*,
-  *S. geminata*, *Wasmannia auropunctata*, *Pachycondyla chinensis* (EU IAS of
-  Union concern) and apple snails *Pomacea canaliculata* (EPPO A1) and
-  *P. maculata* (A2).
+- **11 regulated plant pests with live trade**, through two pathways:
+  - **pets:** ants *Solenopsis invicta*, *S. geminata*, *Wasmannia auropunctata*,
+    *Pachycondyla chinensis* (EU IAS of Union concern) and apple snails
+    *Pomacea canaliculata* (EPPO A1), *P. maculata* (A2), *P. diffusa*
+    (genus *Pomacea* EU-listed);
+  - **lab/rearing imports** (LEMIS 2015–2022): *Spodoptera frugiperda*,
+    *Helicoverpa armigera*, *Lycorma delicatula*, *Diabrotica virgifera*.
 - Most traded insect species show only **dead** trade (specimens).
 - No Norwegian listings collected yet. Finn.no, Norwegian shops and a
   `ships_to` field are next.
 
 ## Caveats
 
-- LEMIS covers **US imports only**, up to 2014. Lassaline and Wang describe
+- LEMIS covers **US imports only**, 2000–2022. Lassaline and Wang describe
   trade reported in the literature or on eBay, not current sales to Norway.
 - EPPO matching is exact. Names EPPO doesn't know, or knows only at genus level,
   have no regulatory data yet. Five synonym matches are uncertain

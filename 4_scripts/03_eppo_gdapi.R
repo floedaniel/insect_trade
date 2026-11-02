@@ -22,12 +22,9 @@ library(stringr)
 library(tibble)
 
 base_url  <- "https://api.eppo.int/gd/v2"
-key_file  <- r"(C:\Users\dafl\OneDrive - Folkehelseinstituttet\API keys\EPPO_beta.txt)"
 api_key   <- Sys.getenv("EPPO_API_KEY")
-if (api_key == "" && file.exists(key_file)) {
-  api_key <- trimws(readLines(key_file, n = 1, warn = FALSE))
-}
-if (api_key == "") stop("No EPPO key: set EPPO_API_KEY or check key_file.")
+if (api_key == "") stop("No EPPO key: add EPPO_API_KEY=... to ~/.Renviron ",
+                        "(usethis::edit_r_environ()) and restart R.")
 
 proc_dir  <- here::here("2_processed_data")
 cache_dir <- file.path(proc_dir, "eppo_api_cache")
@@ -139,6 +136,37 @@ cat_sum <- cat_now |>
   ungroup() |>
   mutate(across(c(eppo_list, eu_list, no_list), \(x) na_if(x, "")),
          eu_listed = !is.na(eu_list), no_listed = !is.na(no_list))
+
+# --- 5b. Whole-genus listings ------------------------------------------------
+# For names that match EPPO only at genus level: is the whole genus on an
+# EPPO (9A), EU (9L) or Norwegian list? (e.g. Pomacea: EU emergency measures).
+# Rule (decided 2026-11-02): a listed genus makes its species "regulated";
+# a genus match without a listing gives no credit.
+genus_codes <- sort(unique(na.omit(
+  match_tbl$genus_eppocode[match_tbl$match_type == "genus_only"])))
+cat(sprintf("\nGenus codes (genus-only matches): %d\n", length(genus_codes)))
+genus_cat <- map(set_names(genus_codes), \(code)
+  as_rows(gd_get(file.path("taxons", "taxon", code, "categorization"),
+                 file.path(cache_dir, paste0(code, "_categorization.json"))),
+          code), .progress = TRUE) |> list_rbind()
+genus_sum <- if (nrow(genus_cat) == 0) tibble(genus_eppocode = character()) else
+  genus_cat |>
+  filter(is.na(year_delete)) |>
+  group_by(genus_eppocode = eppocode_query) |>
+  group_modify(\(d, k) tibble(
+    genus_eppo_list = lab(d, "9A"), genus_eu_list = lab(d, "9L"),
+    genus_no_list = lab(d, "NO"),
+    genus_eppo_A12 = any(d$country_iso == "9A" & d$qlist %in% c("1", "2")),
+    genus_categorization = paste(sort(unique(paste0(d$country_iso, ":", d$qlist_label))),
+                                 collapse = "; "))) |>
+  ungroup() |>
+  mutate(across(c(genus_eppo_list, genus_eu_list, genus_no_list), \(x) na_if(x, "")),
+         # same rule as species: EPPO A1/A2, or any EU or Norwegian listing
+         genus_regulated = genus_eppo_A12 | !is.na(genus_eu_list) |
+           !is.na(genus_no_list))
+write_csv(genus_sum, file.path(proc_dir, "eppo_genus_summary.csv"), na = "")
+cat(sprintf("Genera with any categorization: %d | listed by EPPO/EU/NO: %d\n",
+            nrow(genus_sum), sum(genus_sum$genus_regulated)))
 
 host_sum <- hosts |>
   group_by(eppocode_query) |>

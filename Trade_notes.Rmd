@@ -7,7 +7,7 @@ editor_options:
   chunk_output_type: inline
 ---
 
-# Status (2026-11-02, updated)
+# Status (2026-11-02, evening)
 
 **Question:** which insects traded **alive** online could be invasive plant pests in Norway (later the EU)?
 
@@ -15,16 +15,18 @@ editor_options:
 
 - **Plant pests only:** insects, mites, land snails and slugs, apple snails (*Pomacea*) and nematodes. Crustaceans (e.g. *Eriocheir sinensis*), spiders, scorpions, ticks and marine or aquarium molluscs are out, even when EU-listed. Names with unknown class are kept and labelled.
 - **Live specimens only:** dead material (pinned, papered, mounted, framed, ex-pupa specimens, collection, bodies, jewellery) is **labelled as dead, not deleted**. Unknown is kept.
-- **Per species:** `live` if any live evidence; else `unknown` if any evidence of unclear form (food use, LEMIS unspecified); else `dead` if there is dead evidence; else `unknown`.
+- **Per species:** `live` if any live evidence; else `unknown` if any evidence of unclear form (human-food use, LEMIS unspecified); else `dead` if there is dead evidence; else `unknown`.
+- **Food:** live feeders ("pet food", "feeder insects", "live food") count as **live**. Plain "food" (mostly human food) stays **unknown**, because the source doesn't say whether the insects were alive.
+- **Regulated** = EPPO A1/A2, or any EU or Norwegian listing. A **whole-genus listing** (e.g. *Pomacea*) makes its species regulated when they have no EPPO code of their own. A genus match without a listing gives no credit.
 
 | Step | Status |
 |---|---|
-| 1. Seed species list (Hughes 2026) | Done: 10,682 names (+389 live LEMIS species = 11,071; 10,851 after merging synonyms) |
-| 2. Collect live listings (NO/EU) | Shop scripts now label each row live/dead/check/unknown and write to `5_outputs/tables/`. Norway sources not added yet |
+| 1. Seed species list (Hughes 2026) | Done: 10,682 names (+420 live-imported LEMIS species = 11,102; 10,867 after merging synonyms) |
+| 2. Collect live listings (NO/EU) | Shop scripts label each row live/dead/check/unknown and write to `5_outputs/tables/`. Norway sources not added yet |
 | 3. Extract names from listings | Not started |
-| 4. Resolve names (GBIF) | Done: 10,752 of 11,071 names resolved; 308 accepted species still have no class |
-| 5. Pest lookup (EPPO) | Done: 805 EPPO codes (Hughes + LEMIS) via local SQLite + GDAPI |
-| 5b. Scope + life state | Done: LEMIS (all forms), Lassaline use, Wang → `plant_pest_candidates.csv` (3,408) |
+| 4. Resolve names (GBIF) | Done: 10,814 of 11,102 names resolved; 309 accepted species still have no class |
+| 5. Pest lookup (EPPO) | Done: 814 species codes + 422 genus codes, local SQLite + GDAPI |
+| 5b. Scope + life state | Done: LEMIS 2000–2022 (all forms), Lassaline use, Wang → `plant_pest_candidates.csv` (2,379) |
 | 6. Tier A–D | Not started |
 | 7. Pathway / FinnPRIO | Not started |
 
@@ -36,10 +38,12 @@ All raw data sits in `1_raw_data/<author+year_source>/`, and the PDFs in `3_meta
 |---|---|---|---|
 | Hughes et al. 2026 | `hughes2026_figshare_33194898/` | 10,682 traded invertebrate names, flags per data source | No distinction |
 | Lassaline et al. 2025 | `lassaline2025_sciencedirect/` | 4,738 taxa (4,300 insects) from 91 papers, with `reported_use` | Partly, through use type |
-| Wang et al. 2023 | `wang2023_zenodo_7825674/` | 51,348 eBay butterfly sales from 2022, seller country | Dead specimens (inferred) |
+| Wang et al. 2023 | `wang2023_zenodo_7825674/` | 51,348 eBay butterfly sales from 2022, seller country | Dead specimens |
 | Marshall et al. 2022 | `marshall2022_zenodo_5758541/` | Arachnid web-trade data + R scraping code | Mostly live pets (inferred) |
-| LEMIS 2000–2014 (Eskew et al. 2020) | `eskew2020_lemis_github/` | 5.5 M US import records | **Yes**: LIV / EGL / DEA codes |
+| **LEMIS 2000–2022, corrected (Marshall et al. 2025)** | `marshall2025_figshare_25041584/` | 8.7 M US import records, corrected names | **Yes**: LIV / EGL / DEA codes |
+| LEMIS 2000–2014 (Eskew et al. 2020) | `eskew2020_lemis_github/` | Older version, now included in the 2025 data | Yes (not used any more) |
 | EPPO codes + GDAPI | `eppo db/`, `2_processed_data/eppo_api_cache/` | Codes, synonyms, taxonomy, lists, hosts, distribution | n/a |
+| GBIF backbone + Catalogue of Life | API (`2_processed_data/gbif_cache/`) | Class/order, accepted names, synonym checks | n/a |
 
 ## Hughes et al. 2026 - wildlife trade data gaps
 - *Sci. Adv.* 12:eaei3504, doi 10.1126/sciadv.aei3504. PDF: `Hughes_2026_wildlife_trade_data_gaps.pdf`.
@@ -48,7 +52,7 @@ All raw data sits in `1_raw_data/<author+year_source>/`, and the PDFs in `3_meta
 - Also has a preprint on EcoEvoRxiv with supplementary files on Google Drive: https://ecoevorxiv.org/repository/view/11272/ (not downloaded; probably the same data).
 - **Local:** `upSetData_singleNames_inv_comp.csv` (10,682 names) with 0/1 flags: CITES Trade, CITES App, LEMIS, LEMIS_noS, IUCN, TRAFFIC, Research. `Data_S1 - sourceSpeciesLists/` holds the raw lists per source.
 - **Research flag** = the published studies they compiled: Lassaline 2025 (`inv_trim_1.csv`), Wang 2023 (`but_trim_1.csv`), Marshall 2022 (`ara_trim_1.csv`).
-- **Limitation:** none of the flags say whether the animals were live or dead. `LEMIS = 1` covers any form, and 3,836 of the names flagged LEMIS have no live import record.
+- **Limitation:** none of the flags say whether the animals were live or dead. `LEMIS = 1` covers any form, and 3,346 of the names flagged LEMIS have no live import record in 2000–2022.
 
 ## Lassaline et al. 2025 - global invertebrate trade
 - *Biol. Conserv.* 308:111266, https://doi.org/10.1016/j.biocon.2025.111266 (CC-BY). PDF: `Lassaline_2025_global_invertebrate_trade.pdf`.
@@ -56,7 +60,7 @@ All raw data sits in `1_raw_data/<author+year_source>/`, and the PDFs in `3_meta
 - No external repository (Zenodo/figshare). The data is only in the supplementary appendix on ScienceDirect, downloaded by hand on 2026-11-02.
 - Note: the figshare link 10.6084/m9.figshare.22115045 that appears in searches is for a DIFFERENT Lassaline paper (2023, Austral Entomology, "Untangling the web").
 - **Local:** `mmc4.xlsx` holds 4,738 GBIF-resolved taxa with `reported_use` and source article. `mmc1`–`mmc3.docx` hold search terms and included/excluded literature.
-- **Use as a stand-in for live/dead:** collection (3,410) is likely dead; pet (~1,030), biocontrol, pollination/honey, exhibit and aquarium are likely live; food is unclear. The labels are free text and need tidying (`pet` vs `Pet`, combined values).
+- **Use → life state:** collection (3,410) = dead; pet (~1,030), pet food, biocontrol, pollination/honey, exhibit, aquarium = live; food (human), medical, venom = unknown.
 
 ## Wang et al. 2023 - butterfly species sold online
 - *Biol. Conserv.* 283:110092, https://doi.org/10.1016/j.biocon.2023.110092 (CC-BY). PDF: `Wang_2023_butterfly_species_sold_online.pdf`.
@@ -64,7 +68,7 @@ All raw data sits in `1_raw_data/<author+year_source>/`, and the PDFs in `3_meta
 - Zenodo: https://zenodo.org/records/7825674 (README + **3** CSVs: SM1 species traits/volume/price, SM2 51,348 transactions 15.2 MB, SM3 image clusters). MD5 verified.
 - GitHub (scraper code): https://github.com/Weilin37/ButterflyTradeEbay
 - **Local:** SM2 covers all of 2022, eBay, with seller location. 873 sellers, names replaced by IDs. Top countries: DE, PL, GB, RU, US. **No Norwegian sellers.**
-- **Limitation:** the listing titles suggest pinned or framed specimens, i.e. **dead**. Treat as evidence of trade, not of live-pest risk.
+- **All dead:** titles say papered, unmounted, spread, framed, A1. "Ex pupa"/"ex larva" means reared and then mounted. Even the "larva" titles are mounted specimens or toy figures.
 
 ## Marshall et al. 2022 - arachnid trade
 - *Commun. Biol.* 5:448, doi 10.1038/s42003-022-03374-0. PDF: `Marshall_2022_arachnid_trade.pdf`.
@@ -73,47 +77,48 @@ All raw data sits in `1_raw_data/<author+year_source>/`, and the PDFs in `3_meta
 - Also on PMC: https://pmc.ncbi.nlm.nih.gov/articles/PMC9120460
 - **Main value is the method:** Code S01–S05 (find sale websites with search engines, get the pages, build keywords from species names and synonyms, search the pages for them) is an R pipeline for step 2. Data S1 flags whether each website allows automated searching (useful for the terms-of-service question).
 
-## LEMIS 2000–2014 (Eskew et al. 2020)
-- github.com/eveskew/lemis release v1.1.0, `lemis.fst` (205 MB). `kephelps/LEMIS` on rdrr.io is a fork of the same package.
-- Live codes: `LIV` live, `EGL` live eggs, `DEA` shipped live but died in transit. Company name fields are not read.
-- **US imports only, and only up to 2014.**
+## LEMIS 2000–2022, corrected (Marshall et al. 2025)
+- Marshall et al. 2025, "The magnitude of legal wildlife trade and implications for species survival", *PNAS* 122:e2410774121 (open access, PMC11745324).
+- Data: figshare doi 10.6084/m9.figshare.25041584 (CC BY 4.0). Downloaded `lemisDataCorrected_2023-11-11.csv.gz` (230 MB), `MainDataFileDetails.txt`, `lemis_codes_2023-04-19.csv`, `nameConvertingKey_complete.csv`, `LEMIS_known_outliers.csv`. MD5 verified.
+- Pre-2014 records are the Eskew et al. 2020 data. Names are corrected (`corrected`, `rank`), with a broad group (`group_`) and order. No company fields.
+- A follow-up (Marshall et al. 2025, *Current Biology*, Zenodo 10.5281/zenodo.14982583) adds species distributions, but only for vertebrates and arachnids.
+- Live codes: `LIV` live, `EGL` live eggs, `DEA` shipped live but died in transit; `UNS` = unspecified.
+- **US imports only.** 8.7 M records; 963,710 live non-vertebrate import records; **1,323 species imported live**; 420 of them not in the Hughes list.
+- Top live insects: *Drosophila melanogaster* (1,835 shipments), *Heliconius hecale*, *Morpho peleides* (1.09 M individuals), *H. melpomene*, *H. erato*, *Parides iphidamas*, mostly butterfly-house species from CR, EC, SV, KE, PH.
+- **New compared with 2000–2014:** live imports of *Spodoptera frugiperda* (11,300 eggs from Brazil, 2017–2022, commercial/scientific), *Helicoverpa armigera* (3,000 + 3,000 eggs, AU/BR, biomedical/commercial), *Lycorma delicatula* (TH, 2021), *Diabrotica virgifera*, *Busseola fusca* (300 eggs, ZA), *Bagrada hilaris* (FR, scientific), and *Cydia pomonella* (157 shipments from Canada). These are lab or rearing supplies, not pet trade, but still live movement of pests.
 
-- 443,766 live non-vertebrate import records, 189,179 with a species name. **767 species imported live (174 insects)**, 73 of them with an EPPO code.
-- Top live insects by shipments: *Papilio dardanus* (1,097), *P. nireus*, *P. demodocus*, *Heliconius hecale*, *H. melpomene*, *H. erato*, *Morpho peleides* (445,365 individuals), mostly from CR, KE, TZ and PH.
-- Live and EPPO-listed: *Papilio demoleus* (243 shipments, 4,414 individuals), *Cydia pomonella* (1 shipment), *Dactylopius coccus* (1), *Eriocheir sinensis* (36, EU IAS of Union concern). *Achatina fulica* was imported live but is not in the Hughes list.
+## Older: LEMIS 2000–2014 (Eskew et al. 2020)
+- github.com/eveskew/lemis release v1.1.0, `lemis.fst` (205 MB). `kephelps/LEMIS` on rdrr.io is a fork of the same package. Kept locally for reference, no longer used.
 
 # Scripts and outputs
 
 | Script | Does | Output (`2_processed_data/`) |
 |---|---|---|
-| `4_scripts/01_match_article_eppo.R` | Hughes names → EPPO codes by exact name and synonym (local SQLite), with taxonomy | `article_eppo_match.csv` |
-| `4_scripts/02_lemis_live.R` | LEMIS live imports per species + EPPO codes | `lemis_live_species.csv`, `article_eppo_lemis.csv` |
-| `4_scripts/03_eppo_gdapi.R` | GDAPI v2 for Hughes + LEMIS codes: categorization, hosts, distribution (cached, prints a counter) | `eppo_code_summary.csv`, `article_eppo_enriched.csv`, `eppo_categorization.csv`, `eppo_hosts.csv`, `eppo_distribution.csv` |
+| `4_scripts/01_match_article_eppo.R` | Hughes names → EPPO codes: exact, synonym, binomial-of-trinomial, nominate subspecies; rejects synonyms flagged in `3_metadata/synonym_review.csv` | `article_eppo_match.csv` |
+| `4_scripts/02_lemis_live.R` | Corrected LEMIS 2000–2022: live imports per species (shipments, individuals, years, origin, purpose) + EPPO codes | `lemis_live_species.csv`, `lemis_invert_all_forms.fst`, `article_eppo_lemis.csv` |
+| `4_scripts/03_eppo_gdapi.R` | GDAPI v2 (key from `EPPO_API_KEY` in `.Renviron`): categorization, hosts and distribution for species codes; categorization for genus codes | `eppo_code_summary.csv`, `eppo_genus_summary.csv`, long tables |
 | `4_scripts/04_gbif_names.R` | GBIF backbone match (direct API, cached): class/order, accepted names | `gbif_names.csv` |
-| `4_scripts/05_scope_life_state.R` | Plant-pest scope + live/dead/unknown per species; merges synonyms | `species_scope_state.csv`, `species_accepted_state.csv`, `5_outputs/tables/plant_pest_candidates.csv` |
-| `4_scripts/explore_eppo.R` | Older EPPO exploration | none |
-| Root `*.py` + `life_state.py` | Find shops and platform listings; every row labelled live/dead/check/unknown (multilingual keywords) | `5_outputs/tables/discovered_shops.csv`, `platform_results.csv`, `commoncrawl_results.csv` |
+| `4_scripts/05_scope_life_state.R` | Plant-pest scope + live/dead/unknown per species; genus listings; merges synonyms | `species_scope_state.csv`, `species_accepted_state.csv`, `5_outputs/tables/plant_pest_candidates.csv` |
+| Root `*.py` + `life_state.py` | Find shops and platform listings; every row labelled live/dead/check/unknown (multilingual keywords, incl. feeder insects) | `5_outputs/tables/discovered_shops.csv/.xlsx`, `platform_results.csv`, `commoncrawl_results.csv` |
 
 # What we have: key numbers
 
-All species (Hughes + live LEMIS), merged on the GBIF accepted name (`species_accepted_state.csv`, 10,851 species):
+All species (Hughes + live LEMIS), merged on the GBIF accepted name (`species_accepted_state.csv`, 10,867 species):
 
 | Plant-pest group | Live | Unknown | Dead (labelled) | Total |
 |---|---|---|---|---|
-| Insects | 870 | 1,948 | 3,291 | 6,109 |
-| Snails/slugs | 79 | 300 | 15 | 394 |
-| Nematodes | 5 | 15 | 3 | 23 |
-| Mites | 7 | 3 | 0 | 10 |
-| Unknown class | 6 | 173 | 129 | 308 |
-| *Out of scope (not plant pests)* | | | | *4,007* |
+| Insects | 975 | 952 | 4,183 | 6,110 |
+| Snails/slugs | 82 | 259 | 52 | 393 |
+| Nematodes | 9 | 7 | 8 | 24 |
+| Mites | 10 | 0 | 0 | 10 |
+| Unknown class | 10 | 73 | 226 | 309 |
+| *Out of scope (not plant pests)* | | | | *4,021* |
 
-**Candidates** (in scope, live or unknown): **3,408**, in `5_outputs/tables/plant_pest_candidates.csv`.
+**Candidates** (in scope, live or unknown): **2,379**, in `5_outputs/tables/plant_pest_candidates.csv`. Of these, 27 are regulated (15 by their own species code, 12 *Pomacea* through the genus listing), and 11 of those have live evidence.
 
-EPPO (805 codes): 130 categorized somewhere, 10 EPPO A1, 9 A2, 23 EU-listed, 5 regulated by Norway, 49 with host plants.
+EPPO name matching (Hughes names): 753 exact, 32 synonym, 22 binomial-of-trinomial, 3 nominate subspecies (810 species codes, 627 insects); 2,953 genus only; 6,919 none.
 
 ## Regulated plant pests: evidence of live trade
-
-In-scope species on an EPPO, EU or Norwegian list (25). Crustaceans such as *Eriocheir sinensis* and *Procambarus clarkii* are left out because they are not plant pests.
 
 | Species | Group | Lists | Life state | Evidence |
 |---|---|---|---|---|
@@ -122,52 +127,47 @@ In-scope species on an EPPO, EU or Norwegian list (25). Crustaceans such as *Eri
 | *Wasmannia auropunctata* | Ant | EU IAS Union concern | **live** | Lassaline: pet |
 | *Pachycondyla chinensis* | Ant | EU IAS Union concern | **live** | Lassaline: pet |
 | *Pomacea canaliculata* | Snail | EPPO A1, EU emergency measures | **live** | Lassaline: pet |
-| *Pomacea maculata* | Snail | EPPO A2, EU emergency measures | **live** | Lassaline: pet |
-| *Spodoptera frugiperda* | Insect | EPPO A2, EU II A | unknown | Lassaline: food; LEMIS unspecified |
-| *Rhynchophorus ferrugineus* | Insect | EPPO A2, EU PZ/RNQP | unknown | Lassaline: food |
+| *Pomacea maculata* | Snail | EPPO A2, EU emergency measures | **live** | Lassaline: pet; LEMIS live (2000) |
+| *Pomacea diffusa* | Snail | EU (genus *Pomacea* listed) | **live** | Lassaline: pet |
+| *Spodoptera frugiperda* | Insect | EPPO A2, EU II A | **live** | LEMIS: 4 shipments 2017–2022 (eggs, commercial/scientific) |
+| *Helicoverpa armigera* | Insect | EPPO A2, NO quarantine | **live** | LEMIS: 2 shipments 2016–2021 (biomedical/commercial) |
+| *Lycorma delicatula* | Insect | EPPO A1, EU II A | **live** | LEMIS: 1 shipment 2021 (commercial) |
+| *Diabrotica virgifera* | Insect | EPPO A2 | **live** | LEMIS: 1 shipment 2018 (commercial) |
+| *Rhynchophorus ferrugineus* | Insect | EPPO A2, EU PZ/RNQP | unknown | Lassaline: food; LEMIS unspecified |
 | *Rhynchophorus palmarum* | Insect | EPPO A1, EU II A | unknown | Lassaline: food |
-| *Lycorma delicatula* | Insect | EPPO A1, EU II A | unknown | LEMIS unspecified |
-| *Vespa mandarinia* | Insect | EU IAS Union concern | unknown | LEMIS unspecified |
-| *Anoplophora glabripennis* | Insect | EPPO A2, EU II B, NO quarantine | unknown | Hughes flags only |
-| *Helicoverpa armigera* | Insect | EPPO A2, NO quarantine | unknown | Hughes flags only |
-| *Premnotrypes latithorax* | Insect | EPPO A1, NO quarantine | unknown | Hughes flags only |
-| *Bactrocera tryoni*, *Ceratitis capitata*, *Choristoneura fumiferana*, *Limonius californicus*, *Metamasius hemipterus*, *Naupactus xanthographus*, *Oemona hirta*, *Vespa velutina* | Insects | EPPO A1/A2 and/or EU | unknown | Hughes flags only |
-| *Popillia japonica* | Insect | EPPO A2, EU II B, NO quarantine | dead | LEMIS bodies/jewellery (33 shipments) |
-| *Anoplophora chinensis* | Insect | EPPO A2, EU II B, NO quarantine | dead | LEMIS bodies/jewellery/specimens (17) |
-| *Cacyreus marshalli* | Insect | EPPO A2 | dead | eBay papered specimens (Wang); collection (Lassaline) |
+| *Choristoneura fumiferana* | Insect | EPPO A1, EU II A | unknown | LEMIS unspecified |
+| *Oemona hirta* | Insect | EPPO A1, EU II A | unknown | Hughes flags only |
+| *Vespa mandarinia* | Insect | EU IAS Union concern | unknown | Hughes flags only |
+| 11 other *Pomacea* spp. | Snails | EU (genus listed) | unknown | Hughes flags only |
+| *Popillia japonica*, *Anoplophora glabripennis*, *A. chinensis*, *Bactrocera tryoni*, *Ceratitis capitata*, *Limonius californicus*, *Metamasius hemipterus*, *Naupactus xanthographus*, *Premnotrypes latithorax*, *Vespa velutina*, *Cacyreus marshalli*, *Pomacea paludosa* | Insects/snail | EPPO/EU/NO | dead | Only dead material (LEMIS bodies/specimens, eBay specimens) |
 
 ## Findings so far
-- **Live pet ants are the clearest regulated live insect trade.** *Solenopsis invicta*, *S. geminata*, *Wasmannia auropunctata* and *Pachycondyla chinensis* are sold as colonies. Ant-keeping shops are the priority for step 2. *Pomacea* apple snails (EPPO A1/A2) are also sold live as pets.
-- **Several regulated insects (16 species) are traded in unknown form.** Edible insects (*Spodoptera frugiperda*, palm weevils) may be sold live or processed. Most of the others have only the Hughes flags.
-- ***Popillia japonica*, *Anoplophora chinensis* and *Cacyreus marshalli* show only dead trade** (specimens, jewellery), so they are labelled dead.
-- **Live, plant-relevant, but not regulated in NO/EU:** *Papilio demoleus* (citrus pest, 243 live US shipments), *Cydia pomonella*, giant African snails (*Lissachatina fulica*, *Achatina achatina*, *Archachatina* spp.), *Theba pisana*, *Cornu aspersum*, *Harmonia axyridis*, and many biocontrol agents (EPPO PM 6/3).
-- **Most traded insects are dead:** 3,291 of 6,109 insect species have only dead evidence (eBay specimens, collections, LEMIS bodies).
-- 3,836 Hughes names flagged `LEMIS` were never imported live. 389 live-imported LEMIS species are not in the Hughes list.
-- **Shops:** of 710 found so far, keyword labels give 345 live, 332 unknown, 19 dead and 14 check.
+- **11 regulated plant pests are traded live.** Two different pathways:
+  - **Pets:** ants (*Solenopsis invicta*, *S. geminata*, *Wasmannia auropunctata*, *Pachycondyla chinensis*) and apple snails (*Pomacea canaliculata*, *P. maculata*, *P. diffusa*). These match online pet trade, so ant-keeping and aquarium shops are the priority for step 2.
+  - **Lab and rearing supply:** *Spodoptera frugiperda*, *Helicoverpa armigera*, *Lycorma delicatula*, *Diabrotica virgifera* (LEMIS 2015–2022, purposes commercial/scientific/biomedical). Probably not sold to hobbyists, but live movement all the same.
+- **Most traded insects are dead:** 4,183 of 6,110 insect species have only dead evidence (eBay specimens, collections, LEMIS bodies). *Popillia japonica* and *Anoplophora* spp. appear only as dead material.
+- **Live, plant-relevant, not regulated in NO/EU:** *Papilio demoleus*, *Cydia pomonella*, giant African snails (*Lissachatina fulica*, *Achatina achatina*), *Theba pisana*, *Cornu aspersum*, *Busseola fusca*, *Bagrada hilaris*, *Harmonia axyridis*, and many biocontrol agents (EPPO PM 6/3).
+- **The newer LEMIS data matters:** 2015–2022 adds live imports of four regulated pests that 2000–2014 did not show.
+- **Shops:** 546 unique shops found so far (710 rows); keyword labels give 256 live, 266 unknown, 13 dead and 11 check.
 
-# Done since last update (2026-11-02)
-- [x] EPPO API run on LEMIS-only species (805 codes in total).
-- [x] Lassaline `reported_use` joined (`lassaline_use`; live = pet, biocontrol, pollination, exhibit, aquarium; dead = collection; unknown = food, medical, etc.).
-- [x] GBIF names: 10,752 of 11,071 resolved; class unknown went from 3,625 to 308 accepted species.
-- [x] Synonym check: 59 matches reviewed in `3_metadata/synonym_review.csv`. 54 OK; 5 to check (*Camponotus nigriceps*, *Oxya japonica*, *Oxycarenus lugubris*, *Blaberus craniifer*, *Agrilus acutus*), none regulated.
-- [x] Shop scripts write to `5_outputs/tables/` and label each row live/dead/check/unknown (`life_state.py`). Existing `discovered_shops.csv` backfilled.
-- [x] `CLAUDE.md` updated; old code-guessing results removed.
-- [x] `README.md` added: purpose, scope rules, quick start, pipeline, life-state rules, Python listing scripts, data sources with DOIs, caveats.
-- [x] **On GitHub:** https://github.com/floedaniel/insect_trade (public, branch `main`).
-  - Not in git: raw data (`1_raw_data/`), PDFs, processed data and API caches (`2_processed_data/`), `*.sqlite`, `*.fst`, `.env`, `.Rhistory`, and Claude Code files (`.claude/`, `CLAUDE.md`).
-  - The EPPO codes database was also removed from the git history before the first push.
-  - Raw data has to be downloaded again from the DOIs in `3_metadata/data_sources.md` (see the README).
+# Done (2026-11-02)
+- [x] EPPO API run on LEMIS-only species; genus codes checked for whole-genus listings.
+- [x] Lassaline `reported_use` joined; pet food / feeders count as live.
+- [x] GBIF names: 10,814 of 11,102 resolved.
+- [x] Synonym check: 59 matches reviewed in `3_metadata/synonym_review.csv`. 54 OK. 5 **rejected** after checking Catalogue of Life (*Camponotus nigriceps*, *Oxya japonica*, *Oxycarenus lugubris*, *Blaberus craniifer*, *Agrilus acutus* are separate species from the EPPO name); script 01 no longer uses their EPPO codes.
+- [x] Nominate-subspecies matching added (*Diabrotica virgifera* → *D. virgifera virgifera*, *Locusta migratoria*, *Papilio scamander*).
+- [x] **Newer LEMIS data:** Marshall et al. 2025 corrected LEMIS 2000–2022 is available (figshare, CC BY 4.0), downloaded, and now used by script 02.
+- [x] **Genus rule decided:** whole-genus listing = regulated; genus match alone = no credit.
+- [x] Shop scripts write to `5_outputs/tables/` with live/dead labels; `discovered_shops.xlsx` regenerated with life-state columns; xlsx headers follow the new columns.
+- [x] EPPO key read only from `EPPO_API_KEY` in `~/.Renviron` (no file path in the code).
+- [x] `README.md`, GitHub repo (https://github.com/floedaniel/insect_trade); raw data, PDFs, processed data, caches and Claude Code files are not in git.
 
 # What needs updating
-- [ ] **Genus-level EPPO matches (2,951):** decide whether genus listings (e.g. regulated genera) should count for tier C.
-- [ ] **The 5 uncertain synonyms:** check against current catalogues.
-- [ ] **`discovered_shops.xlsx`** is out of date (no life_state); the next script run regenerates it.
-- [ ] **EPPO key path:** `03_eppo_gdapi.R` falls back to a OneDrive key file path (only the path, not the key). Consider using `EPPO_API_KEY` in `.Renviron` only.
-- [ ] **`5_outputs/tables/` is public on GitHub.** It holds the shop list and the candidate table with EPPO list status and hosts. Decide whether it should stay public.
+- [ ] **`5_outputs/tables/` on GitHub:** decide whether results and the shop list stay public.
+- [ ] **LEMIS live records without species names:** most live records are only to genus or higher rank. Consider a genus-level live flag for regulated genera.
 
 # What needs adding
-- [ ] **Live listings for Norway and the EU (step 2):** Finn.no, Norwegian hobby shops, and EU shops that ship to Norway. Fields: title, species, life stage, live yes/no, price, seller country, `ships_to`, date, URL. Adapt Marshall's Code S01–S05 (R).
-- [ ] **Newer LEMIS data:** Marshall et al. 2025 (*PNAS* 122:e2410774121) cleaned LEMIS beyond 2014. Find out whether the data is available.
+- [ ] **Live listings for Norway and the EU (step 2):** Finn.no, Norwegian hobby shops, ant-keeping and aquarium shops, and EU shops that ship to Norway. Fields: title, species, life stage, live yes/no, price, seller country, `ships_to`, date, URL. Adapt Marshall's Code S01–S05 (R).
 - [ ] **Norwegian regulation:** Lovdata plant health regulation (forskrift om planter og tiltak mot planteskadegjørere), Artsdatabanken alien species list.
 - [ ] **EU lists:** Regulation 2019/2072 annexes and the Union-concern list as tables (partly covered through EPPO 9L categorization already).
 - [ ] **Host plants in Norway:** for phytophagous species without EPPO host data (e.g. *Papilio demoleus*), get host genera elsewhere (e.g. HOSTS database, literature) and check whether the hosts grow in Norway.
@@ -177,5 +177,5 @@ In-scope species on an EPPO, EU or Norwegian list (25). Crustaceans such as *Eri
 
 # Open questions
 - Which platforms are in scope, and does their terms of service allow scraping? Marshall Data S1 shows how they recorded this per site.
-- Should *food* use count as live (live feeder insects)? Currently unknown.
 - Acceptable false-positive rate for extracting species names from listings?
+- Should lab/rearing imports (purpose S/M) be scored the same as pet trade in the tiers?
