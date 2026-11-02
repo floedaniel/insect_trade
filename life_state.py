@@ -20,52 +20,21 @@ import re
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent
-TABLES_DIR  = PROJECT_DIR / "5_outputs" / "tables"
+TABLES_DIR  = PROJECT_DIR / "5_outputs" / "tables"      # results: xlsx only
+DATA_DIR    = PROJECT_DIR / "2_processed_data"          # working csv files
 EPPO_DB     = PROJECT_DIR / "1_raw_data" / "eppo db" / "eppocodes.sqlite"
 TABLES_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# Dead first: "ex pupa" / "ex larva" are reared-then-mounted adults.
-_DEAD = [
-    r"ex[\s\.\-]*(pupa|pupae|larva|larvae|ovo|ova)",
-    r"pinned", r"papered", r"in papers?", r"unmounted", r"mounted", r"spread",
-    r"set specimen", r"framed?", r"riker", r"shadow ?box", r"display case",
-    r"specimens?", r"taxiderm\w*", r"preserved", r"dried", r"dry\b",
-    r"resin", r"lucite", r"acrylic", r"embedded",
-    r"\bA1\b", r"\bA-1\b", r"\bA2\b",
-    r"pendant", r"keychain", r"key ring", r"earrings?", r"necklace", r"brooch",
-    r"figure", r"gashapon", r"toy", r"sticker", r"print", r"poster",
-    r"wings? only", r"dead",
-    # NO / SV / DA
-    r"tørket", r"torkad", r"preparert", r"preparerad", r"innrammet",
-    r"inramad", r"nålet", r"nålad", r"død",
-    # DE / NL
-    r"präpariert", r"praepariert", r"genadelt", r"gespannt", r"ungespannt",
-    r"gerahmt", r"getrocknet", r"opgezet", r"ingelijst", r"gedroogd",
-    # FR / ES / PL
-    r"naturalisé", r"encadré", r"séché", r"enmarcado", r"disecado",
-    r"seco\b", r"preparat\w*", r"suszon\w*", r"w ramce",
-]
-_LIVE = [
-    r"live", r"alive", r"living", r"culture", r"starter",
-    r"eggs?", r"ova\b", r"ootheca\w*", r"larva[e]?", r"larvae", r"grubs?",
-    r"caterpillars?", r"pupa[e]?", r"chrysalis\w*", r"cocoons?", r"nymphs?",
-    r"\bL[1-5]\b", r"colon(y|ies)", r"queens?", r"brood", r"feeders?",
-    r"breeding", r"captive bred", r"\bCB\b", r"live food", r"feeder insects?",
-    r"fôrdyr", r"fôrinsekt\w*", r"futterinsekt\w*", r"futtertier\w*",
-    r"voederdier\w*",
-    # NO / SV / DA
-    r"levende", r"levande", r"egg\b", r"ägg", r"æg", r"larver?", r"larv\b",
-    r"pupper?", r"puppor", r"kokong\w*", r"nymfer?", r"koloni\w*",
-    r"dronning\w*", r"drottning\w*", r"avl", r"avel",
-    # DE / NL
-    r"lebend\w*", r"eier", r"larven", r"puppen", r"raupen?", r"kolonie\w*",
-    r"königin\w*", r"nachzucht\w*", r"levend\w*", r"eieren", r"rupsen",
-    # FR / ES / PL
-    r"vivant\w*", r"oeufs?", r"œufs?", r"larves?", r"chrysalides?", r"colonie",
-    r"reine", r"vivos?", r"vivas?", r"huevos?", r"larvas?", r"pupas?",
-    r"colonia", r"reina", r"żyw\w*", r"jaja", r"jajka", r"larwy",
-    r"poczwark\w*", r"kolonia", r"królow\w*",
-]
+# Keyword patterns live in one shared file, also read by the R scripts:
+# 3_metadata/life_state_terms.csv (columns: state = dead|live, pattern = regex).
+# Dead terms win over live ones inside the same phrase ("ex pupa" is a
+# reared-then-mounted adult).
+TERMS_FILE = PROJECT_DIR / "3_metadata" / "life_state_terms.csv"
+with open(TERMS_FILE, newline="", encoding="utf-8") as _f:
+    _rows = list(csv.DictReader(_f))
+_DEAD = [r["pattern"] for r in _rows if r["state"] == "dead"]
+_LIVE = [r["pattern"] for r in _rows if r["state"] == "live"]
 _DEAD_RE = [re.compile(rf"(?<!\w){p}", re.IGNORECASE) for p in _DEAD]
 _LIVE_RE = [re.compile(rf"(?<!\w){p}", re.IGNORECASE) for p in _LIVE]
 

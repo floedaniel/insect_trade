@@ -14,10 +14,10 @@ Phase 2 (scraping each discovered shop for species) comes later.
 # SETTINGS
 # ==============================================================================
 
-from life_state import (TABLES_DIR, EPPO_DB as PROJECT_EPPO_DB,
+from life_state import (TABLES_DIR, DATA_DIR, EPPO_DB as PROJECT_EPPO_DB,
                         classify_life_state, append_csv as _append_csv)
 
-OUTPUT_CSV  = TABLES_DIR / "discovered_shops.csv"
+OUTPUT_CSV  = DATA_DIR / "discovered_shops.csv"
 OUTPUT_XLSX = TABLES_DIR / "discovered_shops.xlsx"
 
 DELAY_TAVILY = 1.5   # seconds between Tavily queries

@@ -30,9 +30,11 @@ source("4_scripts/02_lemis_live.R")          # live US imports (LEMIS)
 source("4_scripts/03_eppo_gdapi.R")          # EPPO Global Database API
 source("4_scripts/04_gbif_names.R")          # GBIF backbone names
 source("4_scripts/05_scope_life_state.R")    # scope + live/dead labels
+# 06 crawls shops: run from a terminal (long, parallel)
+#   Rscript 4_scripts/06_species_by_website.R live 8
 ```
 
-Main output: `5_outputs/tables/plant_pest_candidates.xlsx` (sheets: candidates, regulated, all_species, column_guide; also as `.csv`). Every result table is also written as `.xlsx`: `lemis_live_species.xlsx`, `gbif_names.xlsx`, `discovered_shops.xlsx`.
+Main output: `5_outputs/tables/plant_pest_candidates.xlsx` (sheets: candidates, regulated, all_species, column_guide). **All results are `.xlsx` only:** `species_by_website.xlsx`, `lemis_live_species.xlsx`, `gbif_names.xlsx`, `discovered_shops.xlsx`. Csv files exist only as internal working files in `2_processed_data/`.
 
 **Results are not in the repository.** `5_outputs/` is created when you run
 the pipeline. It is gitignored because the shop and listing tables hold
@@ -66,7 +68,8 @@ so later runs are fast and work offline.
 | 3 | `03_eppo_gdapi.R` | EPPO GDAPI v2 for all matched codes: categorization (A1/A2, EU, national lists), host plants, distribution. Prints a counter | `eppo_code_summary.csv`, `eppo_categorization.csv`, `eppo_hosts.csv`, `eppo_distribution.csv` |
 | 4 | `04_gbif_names.R` | GBIF backbone match for class/order, accepted names and **GBIF species keys** (for later occurrence/distribution queries). Names the backbone only knows at genus level get a second try through Catalogue of Life and GBIF synonym search (flagged "check") | `gbif_names.csv`, `5_outputs/tables/gbif_names.xlsx` |
 | 5 | `05_scope_life_state.R` | Plant-pest scope; live/dead/unknown per species from all evidence; merges synonyms by GBIF accepted name | `species_scope_state.csv`, `species_accepted_state.csv`, **`5_outputs/tables/plant_pest_candidates.csv`** |
-| 6 | *planned* `06_tier.R` | Tiers A–D (below) | |
+| 6 | `06_species_by_website.R` | **Ties species to real sale pages.** For each discovered shop: obeys robots.txt, reads product sitemaps (or links when there is no sitemap), finds candidate names in URLs, image titles and link text, fetches the matching pages (regulated species first) and records title, price, page type, live/dead label and ships-to hints. Names: scientific names and synonyms, plus GBIF common names in 11 languages (weaker evidence) | `5_outputs/tables/species_by_website.xlsx` (hits, by_species, by_shop, shop_status, column_guide) |
+| 7 | *planned* `07_tier.R` | Tiers A–D (below) | |
 
 APIs are called directly with `httr2`, without wrapper packages.
 
@@ -112,7 +115,7 @@ python platform_search.py       # species listings on marketplaces
 python commoncrawl_search.py    # sale pages in Common Crawl
 ```
 
-All three write to `5_outputs/tables/` and label every row through
+All three write their results as `.xlsx` to `5_outputs/tables/` (working csv in `2_processed_data/`) and label every row through
 `life_state.py`:
 
 | `life_state` | Meaning |
@@ -122,12 +125,67 @@ All three write to `5_outputs/tables/` and label every row through
 | `check` | both kinds of term; needs a look |
 | `unknown` | no terms |
 
-Keywords cover English, Norwegian, Swedish, Danish, German, Dutch, French,
+The keywords are in `3_metadata/life_state_terms.csv`, shared by the Python
+scripts and script 06. They cover English, Norwegian, Swedish, Danish, German, Dutch, French,
 Spanish and Polish. The matched words are kept in `life_terms`. To test the
 classifier: `python life_state.py`.
 
 Respect each site's terms of service. Store no seller personal data beyond what
 the analysis needs.
+
+---
+
+## Web scraper: species on sale (`insect_scraper/`)
+
+The main tool for tying species to real sale pages. It replaces the lighter R
+crawler in `4_scripts/06_species_by_website.R`. It needs the R pipeline 01–05
+first, for the species list.
+
+```bash
+pip install --user -r requirements.txt
+py -3 -m insect_scraper discover --max-queries 400   # find more shops
+py -3 -m insect_scraper crawl --workers 16           # crawl all shops (resumes)
+py -3 -m insect_scraper report                       # write the xlsx again
+py -3 -m insect_scraper all                          # all three
+py -3 -m pytest tests                                # unit tests
+```
+
+**How it works**
+
+1. **Shops:** `discovered_shops.csv` (from `insect_trade_loop.py`) plus
+   `discover`: multilingual searches for regulated and live-traded species
+   (scientific and common names) and generic live-insect shop terms, Norwegian
+   and Nordic first. Engines: DuckDuckGo/Bing/Yahoo (free, via `ddgs`) and
+   Tavily (if `TAVILY_API_KEY` is in `.env`). Each query runs once.
+2. **Full catalogue per shop:** Shopify and WooCommerce shops publish their
+   whole catalogue as JSON (`/products.json`, `/wp-json/wc/store/products`).
+   Other shops: product sitemaps, else a link crawl. Product pages give
+   structured data (JSON-LD, microdata, OpenGraph): name, price, currency, stock.
+3. **Matching:** all ~6,800 in-scope plant-pest species, including those
+   labelled dead (a live listing upgrades them): scientific names, synonyms,
+   EPPO names (also in URLs and descriptions), and GBIF common names in 11
+   languages (plurals; Nordic letters; one-word names only if clearly an animal
+   word, such as "superworm"). A common name shared by several species of one
+   genus becomes a genus hit ("*Pomacea* spp.").
+4. **Labels:** page type (product, category, info, accessory), live/dead
+   (shared keyword file; "dead on arrival" guarantees count as live), price.
+5. **Shop facts:** ships to Norway (yes / no / no (EU only) / unclear, with the
+   evidence sentence), shipping scope (worldwide, EU, domestic only), seller
+   country (imprint address, domain or currency). Only country codes are kept.
+6. **New names:** Latin names of in-scope genera found on product pages but
+   missing from our species list, as candidates to add.
+
+**Rules:** robots.txt is obeyed (our agent name `insect-trade-research` or `*`,
+plus Crawl-delay); at least 1.5 s between requests to one shop; responses are
+cached for 30 days (`2_processed_data/scrape_cache.sqlite`). Marketplaces whose
+terms forbid automated collection (Finn.no, eBay, Amazon, Etsy, AliExpress,
+Facebook, Chewy, Blocket, DBA, Kleinanzeigen, Marktplaats ...) are skipped and
+listed. No JavaScript rendering: this PC's group policy blocks headless
+browsers, so shops that only render products with JavaScript are missed.
+
+**Output:** `5_outputs/tables/species_on_sale.xlsx` with sheets
+`regulated_on_sale`, `species_on_sale`, `listings`, `shops`, `new_latin_names`,
+`skipped` and `column_guide`.
 
 ---
 
@@ -154,9 +212,11 @@ details are in [`3_metadata/data_sources.md`](3_metadata/data_sources.md).
 1_raw_data/          raw data, one folder per publication (not in git)
 2_processed_data/    intermediate tables and API caches (not in git)
 3_metadata/          data_sources.md, synonym_review.csv, pdf/ (pdf not in git)
-4_scripts/           R pipeline 01–05
+4_scripts/           R pipeline 01–06
 5_outputs/tables/    results, created by the pipeline (not in git)
-*.py, life_state.py  shop and listing collection
+*.py, life_state.py  shop discovery scripts (Python)
+insect_scraper/      web scraper: species on sale (Python)
+tests/               unit tests for the scraper
 Trade_notes.Rmd      running notes: status, findings, to-do
 ```
 

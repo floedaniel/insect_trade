@@ -13,7 +13,7 @@
 #         Wang 2023 SM2.
 # Outputs:
 #   2_processed_data/species_scope_state.csv   all species, with labels
-#   5_outputs/tables/plant_pest_candidates.csv in scope, live or unknown
+#   5_outputs/tables/plant_pest_candidates.xlsx in scope, live or unknown (xlsx only)
 
 library(dplyr)
 library(readr)
@@ -274,7 +274,8 @@ cand <- acc |>
          hosts, in_hughes)
 out_dir <- here::here("5_outputs", "tables")
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
-write_csv(cand, file.path(out_dir, "plant_pest_candidates.csv"), na = "")
+# (no csv in 5_outputs: results are xlsx only; csv kept in 2_processed_data)
+write_csv(cand, proc("plant_pest_candidates.csv"), na = "")
 
 # Excel version (project rule: every output also as .xlsx)
 guide <- tibble::tribble(

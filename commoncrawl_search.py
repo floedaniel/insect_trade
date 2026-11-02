@@ -20,12 +20,12 @@ No API keys. No paid services. WARC fetches are HTTP Range requests (~5-50 KB ea
 # SETTINGS
 # ==============================================================================
 
-from life_state import (TABLES_DIR, EPPO_DB as PROJECT_EPPO_DB,
+from life_state import (TABLES_DIR, DATA_DIR, EPPO_DB as PROJECT_EPPO_DB,
                         classify_life_state, append_csv as _append_csv)
 
 EPPO_DB = str(PROJECT_EPPO_DB)
 
-OUTPUT_CSV  = TABLES_DIR / "commoncrawl_results.csv"
+OUTPUT_CSV  = DATA_DIR / "commoncrawl_results.csv"
 OUTPUT_XLSX = TABLES_DIR / "commoncrawl_results.xlsx"
 
 # How many CDX results to fetch per species per crawl (max 100 recommended)

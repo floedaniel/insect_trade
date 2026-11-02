@@ -16,12 +16,12 @@ Chinese platforms (Taobao, Xianyu, AliExpress, 1688) require Playwright:
 # SETTINGS
 # ==============================================================================
 
-from life_state import (TABLES_DIR, EPPO_DB as PROJECT_EPPO_DB,
+from life_state import (TABLES_DIR, DATA_DIR, EPPO_DB as PROJECT_EPPO_DB,
                         classify_life_state, append_csv as _append_csv)
 
 EPPO_DB = str(PROJECT_EPPO_DB)
 
-OUTPUT_CSV  = TABLES_DIR / "platform_results.csv"
+OUTPUT_CSV  = DATA_DIR / "platform_results.csv"
 OUTPUT_XLSX = TABLES_DIR / "platform_results.xlsx"
 
 TEST_SPECIES = [ ]
