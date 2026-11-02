@@ -7,7 +7,7 @@ editor_options:
   chunk_output_type: inline
 ---
 
-# Status (2026-11-02)
+# Status (2026-11-02, updated)
 
 **Question:** which insects traded **alive** online could be invasive plant pests in Norway (later the EU)?
 
@@ -152,12 +152,18 @@ In-scope species on an EPPO, EU or Norwegian list (25). Crustaceans such as *Eri
 - [x] Synonym check: 59 matches reviewed in `3_metadata/synonym_review.csv`. 54 OK; 5 to check (*Camponotus nigriceps*, *Oxya japonica*, *Oxycarenus lugubris*, *Blaberus craniifer*, *Agrilus acutus*), none regulated.
 - [x] Shop scripts write to `5_outputs/tables/` and label each row live/dead/check/unknown (`life_state.py`). Existing `discovered_shops.csv` backfilled.
 - [x] `CLAUDE.md` updated; old code-guessing results removed.
+- [x] `README.md` added: purpose, scope rules, quick start, pipeline, life-state rules, Python listing scripts, data sources with DOIs, caveats.
+- [x] **On GitHub:** https://github.com/floedaniel/insect_trade (public, branch `main`).
+  - Not in git: raw data (`1_raw_data/`), PDFs, processed data and API caches (`2_processed_data/`), `*.sqlite`, `*.fst`, `.env`, `.Rhistory`, and Claude Code files (`.claude/`, `CLAUDE.md`).
+  - The EPPO codes database was also removed from the git history before the first push.
+  - Raw data has to be downloaded again from the DOIs in `3_metadata/data_sources.md` (see the README).
 
 # What needs updating
 - [ ] **Genus-level EPPO matches (2,951):** decide whether genus listings (e.g. regulated genera) should count for tier C.
 - [ ] **The 5 uncertain synonyms:** check against current catalogues.
 - [ ] **`discovered_shops.xlsx`** is out of date (no life_state); the next script run regenerates it.
-- [ ] **Commit and push:** the GitHub repo `floedaniel/insect_trade` is public. Large or licensed files are gitignored (see `.gitignore`).
+- [ ] **EPPO key path:** `03_eppo_gdapi.R` falls back to a OneDrive key file path (only the path, not the key). Consider using `EPPO_API_KEY` in `.Renviron` only.
+- [ ] **`5_outputs/tables/` is public on GitHub.** It holds the shop list and the candidate table with EPPO list status and hosts. Decide whether it should stay public.
 
 # What needs adding
 - [ ] **Live listings for Norway and the EU (step 2):** Finn.no, Norwegian hobby shops, and EU shops that ship to Norway. Fields: title, species, life stage, live yes/no, price, seller country, `ships_to`, date, URL. Adapt Marshall's Code S01–S05 (R).
