@@ -253,11 +253,7 @@ to-do list. In short (November 2026):
   - **lab/rearing imports** (LEMIS 2015–2022): *Spodoptera frugiperda*,
     *Helicoverpa armigera*, *Lycorma delicatula*, *Diabrotica virgifera*.
 - Most traded insect species show only **dead** trade (specimens).
-- **Web scraper (first results, crawl in progress):** after ~120 shops, 367
-  species on sale pages, mostly live feeders (mealworm, dubia roach, black
-  soldier fly, superworm, silkworm, fruit flies, waxworm); no regulated species
-  yet; few shops state that they ship to Norway. Marketplaces whose terms forbid
-  scraping (e.g. Finn.no) are not covered.
+- **Web scrape, final (2026-11-02):** 1,059 shops (755 crawled fully, 90 to the 45-min limit, 188 unreachable, 11 disallowed by robots.txt, 13 skipped marketplaces). With evidence grading (priced product in a live-animal shop, species named in title): **15,506 listings, 1,828 species, 348 live-animal shops**. **7 regulated plant pests on sale live:** *Pomacea diffusa* (24 shops), *P. maculata* (6), *P. canaliculata* (4, EPPO A1), *Solenopsis geminata* (6), *S. invicta* (3) (live colonies; UK, Canada, US, Colombia, Malaysia), *Spodoptera frugiperda* (live eggs/larvae, lab-rearing supplier) and *Choristoneura fumiferana* (same supplier). No shop selling a regulated species clearly states shipping to Norway. **First FinnPRIO batch: 42 species** (tier A/B with live evidence; ~39 after removing species already present in Norway).
 
 ## Caveats
 
