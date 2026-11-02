@@ -14,8 +14,11 @@ Phase 2 (scraping each discovered shop for species) comes later.
 # SETTINGS
 # ==============================================================================
 
-OUTPUT_CSV  = "discovered_shops.csv"
-OUTPUT_XLSX = "discovered_shops.xlsx"
+from life_state import (TABLES_DIR, EPPO_DB as PROJECT_EPPO_DB,
+                        classify_life_state, append_csv as _append_csv)
+
+OUTPUT_CSV  = TABLES_DIR / "discovered_shops.csv"
+OUTPUT_XLSX = TABLES_DIR / "discovered_shops.xlsx"
 
 DELAY_TAVILY = 1.5   # seconds between Tavily queries
 DELAY_DDG    = 4.0   # seconds between DuckDuckGo queries (stricter rate limit)
@@ -250,17 +253,17 @@ def search_ddg(query: str) -> list[dict]:
 
 # ── Output ────────────────────────────────────────────────────────────────────
 
-CSV_FIELDS = ["domain", "url", "title", "snippet", "query", "engine", "date", "run_id"]
+CSV_FIELDS = ["domain", "url", "title", "snippet", "query", "engine", "date", "run_id", "life_state", "life_terms"]
 
 
 def append_csv(rows: list):
-    path = Path(OUTPUT_CSV)
-    write_header = not path.exists()
-    with open(path, "a", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=CSV_FIELDS, extrasaction="ignore")
-        if write_header:
-            w.writeheader()
-        w.writerows(rows)
+    # label live / dead / check / unknown before writing (rows are shared with
+    # all_rows, so the label also reaches the xlsx)
+    for r in rows:
+        if not r.get("life_state"):
+            r["life_state"], r["life_terms"] = classify_life_state(
+                r.get("title", ""), r.get("snippet", ""))
+    _append_csv(OUTPUT_CSV, rows, CSV_FIELDS)
 
 
 def save_xlsx(all_rows: list):
@@ -321,6 +324,10 @@ def load_existing() -> tuple[list, set]:
     df = df[~df["domain"].apply(is_noise)]
     df = df.drop_duplicates(subset=["domain"], keep="first")
     rows    = df.to_dict("records")
+    for r in rows:   # label rows saved before life_state existed
+        if not r.get("life_state"):
+            r["life_state"], r["life_terms"] = classify_life_state(
+                r.get("title", ""), r.get("snippet", ""))
     domains = set(df["domain"].tolist())
     print(f"Loaded   : {len(domains)} existing domains")
     return rows, domains

@@ -20,10 +20,13 @@ No API keys. No paid services. WARC fetches are HTTP Range requests (~5-50 KB ea
 # SETTINGS
 # ==============================================================================
 
-EPPO_DB = r"C:\Users\dafl\OneDrive - Folkehelseinstituttet\insect_trade\eppo db\eppocodes.sqlite"
+from life_state import (TABLES_DIR, EPPO_DB as PROJECT_EPPO_DB,
+                        classify_life_state, append_csv as _append_csv)
 
-OUTPUT_CSV  = "commoncrawl_results.csv"
-OUTPUT_XLSX = "commoncrawl_results.xlsx"
+EPPO_DB = str(PROJECT_EPPO_DB)
+
+OUTPUT_CSV  = TABLES_DIR / "commoncrawl_results.csv"
+OUTPUT_XLSX = TABLES_DIR / "commoncrawl_results.xlsx"
 
 # How many CDX results to fetch per species per crawl (max 100 recommended)
 CDX_LIMIT = 100
@@ -256,17 +259,17 @@ def extract_from_html(html: str, species: str) -> dict | None:
 
 # ── Output ────────────────────────────────────────────────────────────────────
 
-CSV_FIELDS = ["species", "platform", "url", "title", "price", "crawl_id", "date", "run_id"]
+CSV_FIELDS = ["species", "platform", "url", "title", "price", "crawl_id", "date", "run_id", "life_state", "life_terms"]
 
 
 def append_csv(rows: list):
-    path = Path(OUTPUT_CSV)
-    write_header = not path.exists()
-    with open(path, "a", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=CSV_FIELDS, extrasaction="ignore")
-        if write_header:
-            w.writeheader()
-        w.writerows(rows)
+    # label live / dead / check / unknown before writing (rows are shared with
+    # all_rows, so the label also reaches the xlsx)
+    for r in rows:
+        if not r.get("life_state"):
+            r["life_state"], r["life_terms"] = classify_life_state(
+                r.get("title", ""), r.get("snippet", ""))
+    _append_csv(OUTPUT_CSV, rows, CSV_FIELDS)
 
 
 def save_xlsx(all_rows: list):

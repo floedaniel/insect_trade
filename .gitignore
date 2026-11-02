@@ -40,3 +40,12 @@ Thumbs.db
 
 # Output data
 insect_trade_results.csv
+.Rproj.user
+
+# --- Data (public repo): re-download via DOIs in 3_metadata/data_sources.md ---
+1_raw_data/
+3_metadata/pdf/
+2_processed_data/
+*.html
+~$*
+.Rhistory

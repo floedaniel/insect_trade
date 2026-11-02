@@ -13,7 +13,7 @@ library(scales)
 #   SPT / SFT = plant / microorganism taxonomic group
 # Only status = 'A' (active) records are used throughout.
 
-DB_PATH <- r"(C:\Users\dafl\OneDrive - Folkehelseinstituttet\insect_trade\eppo db\eppocodes.sqlite)"
+DB_PATH <- here::here("1_raw_data", "eppo db", "eppocodes.sqlite")
 con <- dbConnect(RSQLite::SQLite(), DB_PATH)
 
 # --- 1. All active animal species (GAI) --------------------------------------
