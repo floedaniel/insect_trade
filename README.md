@@ -152,7 +152,6 @@ details are in [`3_metadata/data_sources.md`](3_metadata/data_sources.md).
 5_outputs/tables/    results: plant_pest_candidates.csv, discovered_shops.csv, …
 *.py, life_state.py  shop and listing collection
 Trade_notes.Rmd      running notes: status, findings, to-do
-CLAUDE.md            project instructions for Claude Code
 ```
 
 ## Status and findings
