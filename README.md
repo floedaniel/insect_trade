@@ -34,6 +34,11 @@ source("4_scripts/05_scope_life_state.R")    # scope + live/dead labels
 
 Main output: `5_outputs/tables/plant_pest_candidates.csv`.
 
+**Results are not in the repository.** `5_outputs/` is created when you run
+the pipeline. It is gitignored because the shop and listing tables hold
+third-party listing text, the candidate table is built from EPPO data, and the
+results are exploratory.
+
 Steps 03 and 04 call web APIs. Every response is cached in `2_processed_data/`,
 so later runs are fast and work offline.
 
@@ -150,7 +155,7 @@ details are in [`3_metadata/data_sources.md`](3_metadata/data_sources.md).
 2_processed_data/    intermediate tables and API caches (not in git)
 3_metadata/          data_sources.md, synonym_review.csv, pdf/ (pdf not in git)
 4_scripts/           R pipeline 01–05
-5_outputs/tables/    results: plant_pest_candidates.csv, discovered_shops.csv, …
+5_outputs/tables/    results, created by the pipeline (not in git)
 *.py, life_state.py  shop and listing collection
 Trade_notes.Rmd      running notes: status, findings, to-do
 ```

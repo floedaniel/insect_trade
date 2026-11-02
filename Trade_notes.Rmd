@@ -161,9 +161,10 @@ EPPO name matching (Hughes names): 753 exact, 32 synonym, 22 binomial-of-trinomi
 - [x] Shop scripts write to `5_outputs/tables/` with live/dead labels; `discovered_shops.xlsx` regenerated with life-state columns; xlsx headers follow the new columns.
 - [x] EPPO key read only from `EPPO_API_KEY` in `~/.Renviron` (no file path in the code).
 - [x] `README.md`, GitHub repo (https://github.com/floedaniel/insect_trade); raw data, PDFs, processed data, caches and Claude Code files are not in git.
+- [x] **Results made private:** `5_outputs/` (candidate table, shop lists) is gitignored and was removed from the whole git history (rewritten and force-pushed 2026-11-02), together with the old root `discovered_shops.csv/.xlsx`. Reasons: shop lists hold third-party listing text, the candidate table is built from EPPO data, and results are exploratory. Run the pipeline to regenerate them.
 
 # What needs updating
-- [ ] **`5_outputs/tables/` on GitHub:** decide whether results and the shop list stay public.
+- [ ] **Shared results:** if results need sharing (e.g. with colleagues), use a private channel (OneDrive/Teams) rather than the public repo.
 - [ ] **LEMIS live records without species names:** most live records are only to genus or higher rank. Consider a genus-level live flag for regulated genera.
 
 # What needs adding
