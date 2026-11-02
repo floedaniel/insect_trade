@@ -32,7 +32,7 @@ source("4_scripts/04_gbif_names.R")          # GBIF backbone names
 source("4_scripts/05_scope_life_state.R")    # scope + live/dead labels
 ```
 
-Main output: `5_outputs/tables/plant_pest_candidates.csv`.
+Main output: `5_outputs/tables/plant_pest_candidates.xlsx` (sheets: candidates, regulated, all_species, column_guide; also as `.csv`). Every result table is also written as `.xlsx`: `lemis_live_species.xlsx`, `gbif_names.xlsx`, `discovered_shops.xlsx`.
 
 **Results are not in the repository.** `5_outputs/` is created when you run
 the pipeline. It is gitignored because the shop and listing tables hold
@@ -64,7 +64,7 @@ so later runs are fast and work offline.
 | 1 | `01_match_article_eppo.R` | Matches the Hughes et al. 2026 names (inverts + Lepidoptera) to EPPO codes by **exact name or synonym** (no code guessing). Adds EPPO taxonomy | `article_eppo_match.csv` |
 | 2 | `02_lemis_live.R` | Live US imports 2000–2022 (Marshall et al. 2025 corrected LEMIS) (LEMIS codes `LIV`, `EGL`, `DEA`), per species: shipments, individuals, years, origin countries | `lemis_live_species.csv`, `article_eppo_lemis.csv` |
 | 3 | `03_eppo_gdapi.R` | EPPO GDAPI v2 for all matched codes: categorization (A1/A2, EU, national lists), host plants, distribution. Prints a counter | `eppo_code_summary.csv`, `eppo_categorization.csv`, `eppo_hosts.csv`, `eppo_distribution.csv` |
-| 4 | `04_gbif_names.R` | GBIF backbone match for class/order and accepted names (synonyms) | `gbif_names.csv` |
+| 4 | `04_gbif_names.R` | GBIF backbone match for class/order, accepted names and **GBIF species keys** (for later occurrence/distribution queries). Names the backbone only knows at genus level get a second try through Catalogue of Life and GBIF synonym search (flagged "check") | `gbif_names.csv`, `5_outputs/tables/gbif_names.xlsx` |
 | 5 | `05_scope_life_state.R` | Plant-pest scope; live/dead/unknown per species from all evidence; merges synonyms by GBIF accepted name | `species_scope_state.csv`, `species_accepted_state.csv`, **`5_outputs/tables/plant_pest_candidates.csv`** |
 | 6 | *planned* `06_tier.R` | Tiers A–D (below) | |
 
@@ -165,7 +165,7 @@ Trade_notes.Rmd      running notes: status, findings, to-do
 See [`Trade_notes.Rmd`](Trade_notes.Rmd) for current numbers, findings and the
 to-do list. In short (November 2026):
 
-- 10,867 species (after merging synonyms) → **2,379 candidates** in scope and
+- 10,859 species (after merging synonyms) → **2,373 candidates** in scope and
   traded live or in unknown form.
 - **11 regulated plant pests with live trade**, through two pathways:
   - **pets:** ants *Solenopsis invicta*, *S. geminata*, *Wasmannia auropunctata*,

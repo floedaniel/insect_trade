@@ -21,12 +21,12 @@ editor_options:
 
 | Step | Status |
 |---|---|
-| 1. Seed species list (Hughes 2026) | Done: 10,682 names (+420 live-imported LEMIS species = 11,102; 10,867 after merging synonyms) |
+| 1. Seed species list (Hughes 2026) | Done: 10,682 names (+420 live-imported LEMIS species = 11,102; 10,859 after merging synonyms) |
 | 2. Collect live listings (NO/EU) | Shop scripts label each row live/dead/check/unknown and write to `5_outputs/tables/`. Norway sources not added yet |
 | 3. Extract names from listings | Not started |
 | 4. Resolve names (GBIF) | Done: 10,814 of 11,102 names resolved; 309 accepted species still have no class |
 | 5. Pest lookup (EPPO) | Done: 814 species codes + 422 genus codes, local SQLite + GDAPI |
-| 5b. Scope + life state | Done: LEMIS 2000–2022 (all forms), Lassaline use, Wang → `plant_pest_candidates.csv` (2,379) |
+| 5b. Scope + life state | Done: LEMIS 2000–2022 (all forms), Lassaline use, Wang → `plant_pest_candidates.xlsx` (2,373) |
 | 6. Tier A–D | Not started |
 | 7. Pathway / FinnPRIO | Not started |
 
@@ -97,24 +97,24 @@ All raw data sits in `1_raw_data/<author+year_source>/`, and the PDFs in `3_meta
 | `4_scripts/01_match_article_eppo.R` | Hughes names → EPPO codes: exact, synonym, binomial-of-trinomial, nominate subspecies; rejects synonyms flagged in `3_metadata/synonym_review.csv` | `article_eppo_match.csv` |
 | `4_scripts/02_lemis_live.R` | Corrected LEMIS 2000–2022: live imports per species (shipments, individuals, years, origin, purpose) + EPPO codes | `lemis_live_species.csv`, `lemis_invert_all_forms.fst`, `article_eppo_lemis.csv` |
 | `4_scripts/03_eppo_gdapi.R` | GDAPI v2 (key from `EPPO_API_KEY` in `.Renviron`): categorization, hosts and distribution for species codes; categorization for genus codes | `eppo_code_summary.csv`, `eppo_genus_summary.csv`, long tables |
-| `4_scripts/04_gbif_names.R` | GBIF backbone match (direct API, cached): class/order, accepted names | `gbif_names.csv` |
+| `4_scripts/04_gbif_names.R` | GBIF backbone match (direct API, cached): class/order, accepted names, GBIF species keys; fallback via Catalogue of Life and GBIF synonym search | `gbif_names.csv`, `gbif_names.xlsx` |
 | `4_scripts/05_scope_life_state.R` | Plant-pest scope + live/dead/unknown per species; genus listings; merges synonyms | `species_scope_state.csv`, `species_accepted_state.csv`, `5_outputs/tables/plant_pest_candidates.csv` |
 | Root `*.py` + `life_state.py` | Find shops and platform listings; every row labelled live/dead/check/unknown (multilingual keywords, incl. feeder insects) | `5_outputs/tables/discovered_shops.csv/.xlsx`, `platform_results.csv`, `commoncrawl_results.csv` |
 
 # What we have: key numbers
 
-All species (Hughes + live LEMIS), merged on the GBIF accepted name (`species_accepted_state.csv`, 10,867 species):
+All species (Hughes + live LEMIS), merged on the GBIF accepted name (`species_accepted_state.csv`, 10,859 species):
 
 | Plant-pest group | Live | Unknown | Dead (labelled) | Total |
 |---|---|---|---|---|
-| Insects | 975 | 952 | 4,183 | 6,110 |
+| Insects | 975 | 957 | 4,189 | 6,121 |
 | Snails/slugs | 82 | 259 | 52 | 393 |
 | Nematodes | 9 | 7 | 8 | 24 |
-| Mites | 10 | 0 | 0 | 10 |
-| Unknown class | 10 | 73 | 226 | 309 |
-| *Out of scope (not plant pests)* | | | | *4,021* |
+| Mites | 11 | 0 | 0 | 11 |
+| Unknown class | 9 | 62 | 216 | 287 |
+| *Out of scope (not plant pests)* | | | | *4,023* |
 
-**Candidates** (in scope, live or unknown): **2,379**, in `5_outputs/tables/plant_pest_candidates.csv`. Of these, 27 are regulated (15 by their own species code, 12 *Pomacea* through the genus listing), and 11 of those have live evidence.
+**Candidates** (in scope, live or unknown): **2,373**, in `5_outputs/tables/plant_pest_candidates.xlsx` (also `.csv`). Of these, 27 are regulated (15 by their own species code, 12 *Pomacea* through the genus listing), and 11 of those have live evidence.
 
 EPPO name matching (Hughes names): 753 exact, 32 synonym, 22 binomial-of-trinomial, 3 nominate subspecies (810 species codes, 627 insects); 2,953 genus only; 6,919 none.
 
@@ -145,7 +145,7 @@ EPPO name matching (Hughes names): 753 exact, 32 synonym, 22 binomial-of-trinomi
 - **11 regulated plant pests are traded live.** Two different pathways:
   - **Pets:** ants (*Solenopsis invicta*, *S. geminata*, *Wasmannia auropunctata*, *Pachycondyla chinensis*) and apple snails (*Pomacea canaliculata*, *P. maculata*, *P. diffusa*). These match online pet trade, so ant-keeping and aquarium shops are the priority for step 2.
   - **Lab and rearing supply:** *Spodoptera frugiperda*, *Helicoverpa armigera*, *Lycorma delicatula*, *Diabrotica virgifera* (LEMIS 2015–2022, purposes commercial/scientific/biomedical). Probably not sold to hobbyists, but live movement all the same.
-- **Most traded insects are dead:** 4,183 of 6,110 insect species have only dead evidence (eBay specimens, collections, LEMIS bodies). *Popillia japonica* and *Anoplophora* spp. appear only as dead material.
+- **Most traded insects are dead:** 4,189 of 6,121 insect species have only dead evidence (eBay specimens, collections, LEMIS bodies). *Popillia japonica* and *Anoplophora* spp. appear only as dead material.
 - **Live, plant-relevant, not regulated in NO/EU:** *Papilio demoleus*, *Cydia pomonella*, giant African snails (*Lissachatina fulica*, *Achatina achatina*), *Theba pisana*, *Cornu aspersum*, *Busseola fusca*, *Bagrada hilaris*, *Harmonia axyridis*, and many biocontrol agents (EPPO PM 6/3).
 - **The newer LEMIS data matters:** 2015–2022 adds live imports of four regulated pests that 2000–2014 did not show.
 - **Shops:** 546 unique shops found so far (710 rows); keyword labels give 256 live, 266 unknown, 13 dead and 11 check.
@@ -153,7 +153,9 @@ EPPO name matching (Hughes names): 753 exact, 32 synonym, 22 binomial-of-trinomi
 # Done (2026-11-02)
 - [x] EPPO API run on LEMIS-only species; genus codes checked for whole-genus listings.
 - [x] Lassaline `reported_use` joined; pet food / feeders count as live.
-- [x] GBIF names: 10,814 of 11,102 resolved.
+- [x] GBIF names: 10,839 of 11,102 have a **GBIF species key** (for later distribution queries; same key = same species to GBIF). 33 came through Catalogue of Life or GBIF synonym search and are flagged "check" (e.g. *Allomyrina dichotoma* → *Trypoxylus dichotomus*; *Cypraea arabica* → *Cypraedia misrensis* is wrong, but out of scope). 263 names have no key (genus-only or unknown names).
+- [x] **EPPO code check:** *Spodoptera frugiperda* has EPPO code `LAPHFR` (EPPO keeps the old genus *Laphygma* in the code). Matching via GBIF accepted names finds only 1 extra in-scope code (*Heliconius charithonia*, not a pest). Outputs now show `eppocode` and `eppo_name` next to the species name.
+- [x] **All result tables also as `.xlsx`** (`plant_pest_candidates.xlsx` with candidates, regulated, all_species and column_guide sheets; `lemis_live_species.xlsx`; `gbif_names.xlsx`; `discovered_shops.xlsx`).
 - [x] Synonym check: 59 matches reviewed in `3_metadata/synonym_review.csv`. 54 OK. 5 **rejected** after checking Catalogue of Life (*Camponotus nigriceps*, *Oxya japonica*, *Oxycarenus lugubris*, *Blaberus craniifer*, *Agrilus acutus* are separate species from the EPPO name); script 01 no longer uses their EPPO codes.
 - [x] Nominate-subspecies matching added (*Diabrotica virgifera* → *D. virgifera virgifera*, *Locusta migratoria*, *Papilio scamander*).
 - [x] **Newer LEMIS data:** Marshall et al. 2025 corrected LEMIS 2000–2022 is available (figshare, CC BY 4.0), downloaded, and now used by script 02.
@@ -168,7 +170,7 @@ EPPO name matching (Hughes names): 753 exact, 32 synonym, 22 binomial-of-trinomi
 - [ ] **LEMIS live records without species names:** most live records are only to genus or higher rank. Consider a genus-level live flag for regulated genera.
 
 # What needs adding
-- [ ] **Live listings for Norway and the EU (step 2):** Finn.no, Norwegian hobby shops, ant-keeping and aquarium shops, and EU shops that ship to Norway. Fields: title, species, life stage, live yes/no, price, seller country, `ships_to`, date, URL. Adapt Marshall's Code S01–S05 (R).
+- [ ] **KEY NEXT STEP: tie species names to websites (step 2–3).** The candidate list shows what *could* be sold live; the proof is finding the species on real sale pages. Plan: (1) for the 546 discovered shops (start with the 256 labelled live), check robots.txt, read the sitemap or category pages, and search product titles for the candidate names and their synonyms (as in Marshall et al. 2022, Code S01–S05); (2) per hit, store species, shop, URL, title, life stage, live/dead label, price, seller country and `ships_to`; (3) start with the 27 regulated candidates, then the rest; (4) add Finn.no, Norwegian hobby, ant-keeping and aquarium shops, and EU shops that ship to Norway. Output: `5_outputs/tables/species_by_website.xlsx`.
 - [ ] **Norwegian regulation:** Lovdata plant health regulation (forskrift om planter og tiltak mot planteskadegjørere), Artsdatabanken alien species list.
 - [ ] **EU lists:** Regulation 2019/2072 annexes and the Union-concern list as tables (partly covered through EPPO 9L categorization already).
 - [ ] **Host plants in Norway:** for phytophagous species without EPPO host data (e.g. *Papilio demoleus*), get host genera elsewhere (e.g. HOSTS database, literature) and check whether the hosts grow in Norway.

@@ -21,6 +21,7 @@ library(stringr)
 library(tidyr)
 library(DBI)
 library(RSQLite)
+source(here::here("4_scripts", "utils_xlsx.R"))
 
 raw  <- \(...) here::here("1_raw_data", ...)
 proc <- \(...) here::here("2_processed_data", ...)
@@ -61,7 +62,9 @@ sp <- bind_rows(art, lem_only) |>
   # GBIF backbone (step 04)
   left_join(rd("gbif_names.csv") |>
               filter(gbif_ok) |>
-              select(name, gbif_class, gbif_order, gbif_family,
+              select(name, gbif_class, gbif_order, gbif_family, gbif_speciesKey,
+                     gbif_key_source,
+                     gbif_usageKey,
                      gbif_accepted, gbif_is_synonym),
             by = "name")
 
@@ -252,24 +255,58 @@ acc <- sp |>
     across(c(live_evidence, unknown_evidence, dead_evidence), collapse_txt),
     regulated = any(regulated), regulated_via = first_val(regulated_via),
     categorized = any(categorized),
-    across(c(class, order, eppocode, eppo_list, eu_list, no_list, no_status,
-             n_categorizations, n_hosts, hosts), first_val),
-    in_hughes = any(in_hughes), .groups = "drop")
+    across(c(class, order, eppocode, api_prefname, gbif_speciesKey, gbif_key_source,
+             gbif_usageKey, gbif_family, eppo_list, eu_list, no_list,
+             no_status, n_categorizations, n_hosts, hosts), first_val),
+    in_hughes = any(in_hughes), .groups = "drop") |>
+  rename(eppo_name = api_prefname, gbif_key = gbif_speciesKey,
+         gbif_usage_key = gbif_usageKey)
 write_csv(acc, proc("species_accepted_state.csv"), na = "")
 
 cand <- acc |>
   filter(in_scope, life_state != "dead") |>
   arrange(desc(regulated), desc(life_state == "live"), desc(categorized),
           desc(coalesce(n_hosts, 0)), accepted_name) |>
-  select(accepted_name, names, pest_group, class, order, life_state,
-         live_evidence, unknown_evidence, dead_evidence, eppocode, regulated,
-         regulated_via,
+  select(accepted_name, eppocode, eppo_name, gbif_key, gbif_key_source, names, pest_group,
+         class, order, family = gbif_family, life_state, live_evidence,
+         unknown_evidence, dead_evidence, regulated, regulated_via,
          eppo_list, eu_list, no_list, no_status, n_categorizations, n_hosts,
          hosts, in_hughes)
-dir.create(here::here("5_outputs", "tables"), showWarnings = FALSE,
-           recursive = TRUE)
-write_csv(cand, here::here("5_outputs", "tables", "plant_pest_candidates.csv"),
-          na = "")
+out_dir <- here::here("5_outputs", "tables")
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+write_csv(cand, file.path(out_dir, "plant_pest_candidates.csv"), na = "")
+
+# Excel version (project rule: every output also as .xlsx)
+guide <- tibble::tribble(
+  ~column, ~meaning,
+  "accepted_name", "GBIF accepted species name (synonyms merged)",
+  "eppocode", "EPPO code (EPPO codes keep old genus names, e.g. LAPHFR = Spodoptera frugiperda)",
+  "eppo_name", "EPPO preferred name for the code",
+  "gbif_key", "GBIF species key of the accepted species (use for GBIF occurrences/distribution)",
+  "gbif_key_source", "backbone match, or via synonym (COL or GBIF synonym search): check these",
+  "names", "All names merged into this row (Hughes, LEMIS, synonyms)",
+  "pest_group", "Plant-pest group: insect, mite, snail/slug, nematode, unknown class",
+  "life_state", "live / unknown / dead (dead rows only in the all_species sheet)",
+  "live_evidence", "Why live: LEMIS live imports (shipments, years, purpose), Lassaline use",
+  "unknown_evidence", "Trade in unclear form: Lassaline food/medical, LEMIS unspecified",
+  "dead_evidence", "Dead material: eBay specimens (Wang), collection, LEMIS bodies/specimens",
+  "regulated", "EPPO A1/A2, or any EU or Norwegian listing (species or whole genus)",
+  "regulated_via", "species = own EPPO code; genus listing = whole genus listed (e.g. Pomacea)",
+  "eppo_list / eu_list / no_list", "Current list entries for EPPO (9A), EU (9L) and Norway",
+  "no_status", "EPPO distribution status in Norway",
+  "n_categorizations", "Number of current country/RPPO list entries in EPPO",
+  "n_hosts / hosts", "EPPO host plants (count, first 20)",
+  "LEMIS purpose codes", "T commercial, S scientific, M biomedical, P personal, Z zoo, B breeding, E educational")
+write_xlsx_tables(
+  list(candidates = cand,
+       regulated = filter(cand, regulated),
+       all_species = acc |> select(accepted_name, eppocode, eppo_name,
+                                   gbif_key, gbif_key_source, names, pest_group, in_scope,
+                                   life_state, live_evidence, unknown_evidence,
+                                   dead_evidence, regulated, regulated_via,
+                                   eppo_list, eu_list, no_list),
+       column_guide = guide),
+  file.path(out_dir, "plant_pest_candidates.xlsx"))
 
 # --- 9. Report -----------------------------------------------------------------
 cat("Species total:", nrow(sp), "\n\nScope:\n")

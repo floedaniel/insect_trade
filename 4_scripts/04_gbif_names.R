@@ -53,7 +53,11 @@ for (b in seq_along(batches)) {
 # --- Parse ---------------------------------------------------------------------
 fields <- c("usageKey", "acceptedUsageKey", "scientificName", "canonicalName",
             "rank", "status", "confidence", "matchType", "kingdom", "phylum",
-            "class", "order", "family", "genus", "species")
+            "class", "order", "family", "genus", "species",
+            # keys: speciesKey = accepted species (use for occurrences and
+            # distribution); usageKey = the matched name (may be a synonym)
+            "speciesKey", "genusKey", "familyKey", "orderKey", "classKey",
+            "phylumKey", "kingdomKey")
 parse_one <- function(nm) {
   f <- cache_file(nm)
   if (!file.exists(f)) return(tibble(name = nm, gbif_matchType = "NOT_FETCHED"))
@@ -71,9 +75,104 @@ gb <- map(names_all, parse_one, .progress = TRUE) |> list_rbind() |>
          # accepted species name (differs from query for synonyms)
          gbif_accepted = if_else(gbif_ok, gbif_species, NA_character_),
          gbif_is_synonym = gbif_ok & !is.na(gbif_status) &
-           gbif_status != "ACCEPTED")
+           gbif_status != "ACCEPTED",
+         # species key only for usable species-level matches
+         gbif_speciesKey = if_else(gbif_ok, gbif_speciesKey, NA_character_))
+
+# --- Fallback: Catalogue of Life for names without a GBIF species key --------
+# Many are old genus combinations the GBIF backbone only knows at genus level
+# (e.g. Allomyrina dichotoma -> Trypoxylus dichotomus). Ask COL (ChecklistBank
+# latest release, 3LR) for the accepted name, then match that name in GBIF.
+col_dir <- proc("col_cache"); dir.create(col_dir, showWarnings = FALSE)
+get_json <- function(req, file) {
+  if (!file.exists(file)) {
+    r <- req |> req_retry(max_tries = 4) |> req_error(is_error = \(r) FALSE) |>
+      req_perform()
+    write_file(if (resp_status(r) == 200) resp_body_string(r) else "null", file)
+  }
+  txt <- read_file(file)
+  if (txt %in% c("", "null")) NULL else fromJSON(txt, simplifyVector = FALSE)
+}
+no_key <- gb$name[is.na(gb$gbif_speciesKey)]
+cat(sprintf("\nFallback for %d names without a GBIF species key\n", length(no_key)))
+search_dir <- proc("gbif_search_cache"); dir.create(search_dir, showWarnings = FALSE)
+
+# candidate accepted names for one query name: COL accepted name (if it
+# differs), then accepted names of synonyms in any GBIF checklist
+alt_names <- function(nm) {
+  out <- character()
+  x <- get_json(request("https://api.checklistbank.org/dataset/3LR/match/nameusage") |>
+                  req_url_query(scientificName = nm),
+                file.path(col_dir, basename(cache_file(nm))))
+  u <- x$usage
+  if (!is.null(u) && identical(u$rank, "species") && !is.null(u$accepted))
+    out <- c(out, u$accepted$name)
+  s <- get_json(request("https://api.gbif.org/v1/species/search") |>
+                  req_url_query(q = nm, rank = "SPECIES", status = "SYNONYM",
+                                limit = 20),
+                file.path(search_dir, basename(cache_file(nm))))
+  for (r in s$results) {
+    if (!is.null(r$accepted) &&
+        str_to_lower(word(r$canonicalName %||% "", 1, 2)) == str_to_lower(nm))
+      out <- c(out, r$accepted)
+  }
+  out <- unique(word(str_squish(out), 1, 2))
+  out[!is.na(out) & str_to_lower(out) != str_to_lower(nm)]
+}
+
+gb2 <- map(no_key, \(nm) {
+  for (acc in alt_names(nm)) {
+    x <- get_json(request("https://api.gbif.org/v1/species/match") |>
+                    req_url_query(name = acc, kingdom = "Animalia", strict = "false"),
+                  cache_file(paste0("ALT_", acc)))
+    ok <- !is.null(x) && isTRUE(x$matchType %in% c("EXACT", "FUZZY")) &&
+      isTRUE(x$rank %in% c("SPECIES", "SUBSPECIES")) &&
+      identical(x$kingdom, "Animalia")
+    if (ok) return(tibble(
+      name = nm, alt_accepted = acc,
+      col_gbif_speciesKey = as.character(x$speciesKey),
+      col_gbif_species = x$species, col_gbif_class = x$class %||% NA,
+      col_gbif_order = x$order %||% NA, col_gbif_family = x$family %||% NA))
+  }
+  NULL
+}, .progress = TRUE) |> list_rbind()
+
+gb <- gb |> mutate(gbif_key_source = if_else(!is.na(gbif_speciesKey),
+                                              "backbone match", NA_character_))
+if (nrow(gb2) > 0) {
+  gb <- gb |>
+    left_join(gb2, by = "name") |>
+    mutate(gbif_via_col = is.na(gbif_speciesKey) & !is.na(col_gbif_speciesKey),
+           gbif_speciesKey = coalesce(gbif_speciesKey, col_gbif_speciesKey),
+           gbif_accepted = coalesce(gbif_accepted, col_gbif_species),
+           gbif_class = if_else(gbif_via_col, col_gbif_class, gbif_class),
+           gbif_order = if_else(gbif_via_col, col_gbif_order, gbif_order),
+           gbif_family = if_else(gbif_via_col, col_gbif_family, gbif_family),
+           gbif_is_synonym = gbif_is_synonym | gbif_via_col,
+           gbif_ok = gbif_ok | gbif_via_col,
+           # synonym search can link the wrong taxon: check these by hand
+           gbif_key_source = if_else(gbif_via_col,
+                                     paste0("via synonym (", alt_accepted, "), check"),
+                                     gbif_key_source)) |>
+    select(-starts_with("col_gbif_"))
+  cat(sprintf("Species keys found through COL / GBIF synonym search: %d\n",
+              sum(gb$gbif_via_col)))
+}
 
 write_csv(gb, proc("gbif_names.csv"), na = "")
+source(here::here("4_scripts", "utils_xlsx.R"))
+dir.create(here::here("5_outputs", "tables"), showWarnings = FALSE, recursive = TRUE)
+write_xlsx_tables(list(gbif_names = gb),
+                  here::here("5_outputs", "tables", "gbif_names.xlsx"))
+
+# Same GBIF species key = same species to GBIF, whatever the name used
+dup <- gb |> filter(!is.na(gbif_speciesKey)) |> group_by(gbif_speciesKey) |>
+  filter(n_distinct(name) > 1) |> ungroup()
+cat(sprintf("\nGBIF species keys: %d names | distinct keys: %d | names sharing a key with another name: %d\n",
+            sum(!is.na(gb$gbif_speciesKey)), n_distinct(gb$gbif_speciesKey, na.rm = TRUE),
+            nrow(dup)))
+cat("Names without a species key:", sum(is.na(gb$gbif_speciesKey)),
+    "(genus-only, kingdom-only or no match; listed in gbif_names.csv)\n")
 
 cat("\nGBIF match types:\n"); print(as.data.frame(count(gb, gbif_matchType, gbif_rank) |> arrange(desc(n))))
 cat("\nUsable matches:", sum(gb$gbif_ok), "of", nrow(gb),

@@ -119,6 +119,18 @@ sp <- sp |>
   select(-key)
 
 write_csv(sp, file.path(proc_dir, "lemis_live_species.csv"), na = "")
+source(here::here("4_scripts", "utils_xlsx.R"))
+dir.create(here::here("5_outputs", "tables"), showWarnings = FALSE, recursive = TRUE)
+write_xlsx_tables(
+  list(lemis_live_species = sp,
+       purpose_codes = tibble::tibble(
+         code = c("T", "S", "M", "P", "Z", "B", "E", "Q", "Y", "G", "H", "L"),
+         meaning = c("Commercial", "Scientific", "Biomedical research",
+                     "Personal", "Zoos", "Breeding in captivity", "Educational",
+                     "Circuses/travelling exhibitions",
+                     "Reintroduction into the wild", "Botanic gardens",
+                     "Hunting trophies", "Law enforcement"))),
+  here::here("5_outputs", "tables", "lemis_live_species.xlsx"))
 
 # --- 4. Join to the article table ------------------------------------------------
 art_file <- file.path(proc_dir, "article_eppo_match.csv")
