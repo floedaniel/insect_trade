@@ -75,28 +75,38 @@ class Fetcher:
     async def robots(self, host: str) -> RobotFileParser | None:
         if host in self._robots:
             return self._robots[host]
-        r = await self._get(f"https://{host}/robots.txt", check_robots=False)
         rp = None
-        if r.status == 200 and r.text:
-            rp = RobotFileParser()
-            rp.parse(r.text.splitlines())
-            cd = rp.crawl_delay(config.UA_TOKEN) or rp.crawl_delay("*")
-            if cd:
-                self._delay[host] = max(config.MIN_DELAY,
-                                        min(float(cd), config.MAX_CRAWL_DELAY))
+        try:
+            r = await self._get(f"https://{host}/robots.txt", check_robots=False)
+            if r.status == 200 and r.text:
+                rp = RobotFileParser()
+                rp.parse(r.text.splitlines())
+                cd = rp.crawl_delay(config.UA_TOKEN) or rp.crawl_delay("*")
+                if cd:
+                    self._delay[host] = max(config.MIN_DELAY,
+                                            min(float(cd), config.MAX_CRAWL_DELAY))
+        except Exception:      # unreadable robots.txt: treat as none
+            rp = None
         self._robots[host] = rp
         return rp
 
     async def allowed(self, url: str) -> bool:
         host = urlsplit(url).netloc
+        if not host:
+            return False       # relative or broken URL: never fetch
         rp = await self.robots(host)
         if rp is None:
             return True
-        return rp.can_fetch(config.UA_TOKEN, url)
+        try:
+            return rp.can_fetch(config.UA_TOKEN, url)
+        except Exception:
+            return True
 
     def sitemaps_from_robots(self, host: str) -> list[str]:
         rp = self._robots.get(host)
-        return list(rp.site_maps() or []) if rp else []
+        maps = list(rp.site_maps() or []) if rp else []
+        # some robots.txt files list relative sitemap paths
+        return [m if m.startswith("http") else f"https://{host}/{m.lstrip('/')}" for m in maps]
 
     # -- fetching -----------------------------------------------------------
     async def get(self, url: str) -> Response:

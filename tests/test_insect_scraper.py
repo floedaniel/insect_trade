@@ -147,3 +147,21 @@ def test_dead_in_description_is_not_dead_label():
                         description="Remove any dead snails quickly. Live arrival.", category="Inverts")
     rows, _ = _rows(p, NameIndex(common={"golden apple snail": "Pomacea canaliculata"}), "x.co.uk", "other")
     assert rows and rows[0]["life_state"] == "live"
+
+
+def test_sitemap_parser_ignores_xml_comments():
+    import asyncio
+    from insect_scraper.crawl import _sitemap_urls
+    from insect_scraper.fetch import Response
+
+    class FakeFetcher:
+        def sitemaps_from_robots(self, host):
+            return []
+        async def get(self, url):
+            if url.endswith("/sitemap.xml"):
+                return Response(url, 200, '<?xml version="1.0"?><!-- generated --><urlset '
+                                'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><!-- c -->'
+                                '<url><loc>https://s.de/p/lasius-niger</loc></url></urlset>')
+            return Response(url, 404, None)
+    urls = asyncio.run(_sitemap_urls(FakeFetcher(), "https://s.de", "s.de"))
+    assert urls == [("https://s.de/p/lasius-niger", "")]

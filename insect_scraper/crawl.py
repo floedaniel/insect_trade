@@ -106,17 +106,17 @@ async def _sitemap_urls(f: Fetcher, base: str, host: str) -> list[tuple[str, str
             continue
         if root is None:
             continue
-        children = [e.text.strip() for e in root.iter() if e.tag.endswith("loc") and e.getparent() is not None
+        children = [e.text.strip() for e in root.iter(etree.Element) if e.tag.endswith("loc") and e.getparent() is not None
                     and e.getparent().tag.endswith("sitemap") and e.text]
         if children:
             pri = [c for c in children if re.search(r"product|produkt|item|artikel|catalog|shop", c, re.I)]
             rest = [c for c in children if c not in pri and not re.search(r"blog|post|page|tag|author|image", c, re.I)]
             queue = pri + queue + rest
-        for u in root.iter():
+        for u in root.iter(etree.Element):         # elements only (no comments)
             if not u.tag.endswith("url"):
                 continue
             loc, titles = "", []
-            for e in u.iter():
+            for e in u.iter(etree.Element):
                 if e.tag.endswith("loc") and e.getparent() is u and e.text:
                     loc = e.text.strip()
                 elif (e.tag.endswith("title") or e.tag.endswith("caption")) and e.text:
