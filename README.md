@@ -70,7 +70,7 @@ so later runs are fast and work offline.
 | 5 | `05_scope_life_state.R` | Plant-pest scope; live/dead/unknown per species from all evidence; merges synonyms by GBIF accepted name | `species_scope_state.csv`, `species_accepted_state.csv`, **`5_outputs/tables/plant_pest_candidates.csv`** |
 | 6 | **`insect_scraper/` (Python, see below)** | **Ties species to real sale pages**: shop discovery, full shop catalogues, name matching, live/dead, ships to Norway | **`5_outputs/tables/species_on_sale.xlsx`** |
 | (6) | `06_species_by_website.R` | Older, lighter R crawler (sitemap URLs only). Superseded by `insect_scraper/`; kept for reference | `5_outputs/tables/species_by_website.xlsx` |
-| 7 | `07_main_results.R` | **DRAFT main result:** one row per in-scope species with all evidence (EPPO/EU/NO lists, hosts, web shops, LEMIS, literature), draft tier A–D and a priority order. Tables only, no plots | **`5_outputs/insect_trade_main_DRAFT.xlsx`** |
+| 7 | `07_main_results.R` | **DRAFT main result:** one row per in-scope species with all evidence (EPPO/EU/NO lists, hosts, web shops, LEMIS, literature), draft tier (Regulated here / Regulated elsewhere / Potential plant pest / No known plant risk) and a priority order. Tables only, no plots | **`5_outputs/insect_trade_main_DRAFT.xlsx`** |
 | 8 | `insect trade results.qmd` | **Presentation for the plant health panel** (Quarto reveal.js): figures and tables read from the main workbook. Render: `quarto render "insect trade results.qmd"` | `insect trade results.html` |
 
 APIs are called directly with `httr2`, without wrapper packages.
@@ -91,12 +91,12 @@ Rule: **live** if any live evidence; otherwise **unknown** if any evidence of
 unknown form; otherwise **dead** if any dead evidence; otherwise **unknown**.
 The columns `live_evidence`, `unknown_evidence` and `dead_evidence` say why.
 
-### Planned tiers
+### Draft tiers
 
-- **A** known pest: EPPO A1/A2, Norwegian or EU regulated
-- **B** regulated elsewhere: quarantine or A1 in another country
-- **C** potential: phytophagous group, or EPPO host-plant records
-- **D** no known plant risk
+- **Regulated here:** EPPO A1/A2, Norwegian or EU regulated (incl. whole-genus listings)
+- **Regulated elsewhere:** on a quarantine or A1/A2 list of another country
+- **Potential plant pest:** EPPO host-plant records, or a plant-feeding family/order (proxy)
+- **No known plant risk:** the rest
 
 Modifiers: live evidence, ships to NO/EU, host plants in Norway, climate match.
 The ranked list feeds Pathway (FinnPRIO ENT3).
@@ -253,7 +253,7 @@ to-do list. In short (November 2026):
   - **lab/rearing imports** (LEMIS 2015–2022): *Spodoptera frugiperda*,
     *Helicoverpa armigera*, *Lycorma delicatula*, *Diabrotica virgifera*.
 - Most traded insect species show only **dead** trade (specimens).
-- **Web scrape, final (2026-11-02):** 1,059 shops (755 crawled fully, 90 to the 45-min limit, 188 unreachable, 11 disallowed by robots.txt, 13 skipped marketplaces). With evidence grading (priced product in a live-animal shop, species named in title): **15,506 listings, 1,828 species, 348 live-animal shops**. **7 regulated plant pests on sale live:** *Pomacea diffusa* (24 shops), *P. maculata* (6), *P. canaliculata* (4, EPPO A1), *Solenopsis geminata* (6), *S. invicta* (3) (live colonies; UK, Canada, US, Colombia, Malaysia), *Spodoptera frugiperda* (live eggs/larvae, lab-rearing supplier) and *Choristoneura fumiferana* (same supplier). No shop selling a regulated species clearly states shipping to Norway. **First FinnPRIO batch: 42 species** (tier A/B with live evidence; ~39 after removing species already present in Norway).
+- **Web scrape, final (2026-11-02):** 1,059 shops (755 crawled fully, 90 to the 45-min limit, 188 unreachable, 11 disallowed by robots.txt, 13 skipped marketplaces). With evidence grading (priced product in a live-animal shop, species named in title): **15,506 listings, 1,828 species, 348 live-animal shops**. **7 regulated plant pests on sale live:** *Pomacea diffusa* (24 shops), *P. maculata* (6), *P. canaliculata* (4, EPPO A1), *Solenopsis geminata* (6), *S. invicta* (3) (live colonies; UK, Canada, US, Colombia, Malaysia), *Spodoptera frugiperda* (live eggs/larvae, lab-rearing supplier) and *Choristoneura fumiferana* (same supplier). No shop selling a regulated species clearly states shipping to Norway. **First FinnPRIO batch: 42 species** ("Regulated here" or "Regulated elsewhere" with live evidence; ~39 after removing species already present in Norway).
 
 ## Caveats
 

@@ -3,14 +3,15 @@
 # results: 5_outputs/insect_trade_main_DRAFT.xlsx. Figures and the panel
 # presentation are in 'insect trade results.qmd', which reads this workbook.
 # One row per accepted species (synonyms merged), all evidence side by side,
-# a draft tier A-D and a priority order. Rerun when the web crawl has finished.
+# a draft tier (Regulated here / Regulated elsewhere / Potential plant pest /
+# No known plant risk) and a priority order. Rerun when the web crawl has finished.
 #
 # Draft tier rules (to be discussed with the panel):
-#   A  regulated: EPPO A1/A2, EU-listed, Norwegian list, or whole genus listed
-#   B  regulated elsewhere: on a quarantine/A1/A2 list of another country/RPPO
-#   C  potential plant pest: EPPO host-plant records, or a plant-feeding group
+#   Regulated here: EPPO A1/A2, EU-listed, Norwegian list, or whole genus listed
+#   Regulated elsewhere: on a quarantine/A1/A2 list of another country/RPPO
+#   Potential plant pest: EPPO host-plant records, or a plant-feeding group
 #      (family/order proxy, flagged as such)
-#   D  no known plant risk
+#   No known plant risk: the rest
 # Live trade: ANY live evidence counts the same (pet, hobby, lab or rearing:
 #   a live animal is a live animal). Sources: live listing on a web shop now,
 #   live US import (LEMIS 2000-2022), live use in the literature (Lassaline).
@@ -23,6 +24,7 @@ source(here::here("4_scripts", "utils_xlsx.R"))
 proc <- \(...) here::here("2_processed_data", ...)
 out_dir <- here::here("5_outputs")
 rd <- \(f) read_csv(proc(f), show_col_types = FALSE, guess_max = Inf)
+TIERS <- c("Regulated here", "Regulated elsewhere", "Potential plant pest", "No known plant risk")   # draft tiers, in priority order
 
 acc <- rd("species_accepted_state.csv")
 sp  <- rd("species_scope_state.csv") |>
@@ -92,14 +94,11 @@ main <- acc |>
       order %in% plant_feeding_orders | pest_group %in% c("snail/slug") ~ "likely (order/group)",
       TRUE ~ "unknown"),
     tier = case_when(
-      regulated ~ "A",
-      coalesce(n_countries_categorized, 0) > 0 ~ "B",
-      plant_feeding != "unknown" ~ "C",
-      TRUE ~ "D"),
-    tier_label = c(A = "A: regulated (EPPO A1/A2, EU, Norway)",
-                   B = "B: regulated elsewhere",
-                   C = "C: potential plant pest",
-                   D = "D: no known plant risk")[tier],
+      regulated ~ "Regulated here",
+      coalesce(n_countries_categorized, 0) > 0 ~ "Regulated elsewhere",
+      plant_feeding != "unknown" ~ "Potential plant pest",
+      TRUE ~ "No known plant risk"),
+    tier_order = match(tier, TIERS),
     live_evidence_level = case_when(
       web_live_listings > 0 ~ "1 live on sale online now",
       lemis_live_shipments > 0 ~ "2 live US imports (LEMIS)",
@@ -112,12 +111,12 @@ main <- acc |>
       str_detect(coalesce(lassaline_use, ""), "pet|biocontrol|exhibit|pollin|honey|aquarium|feeder"),
     # tier first; then live (any source, all equal) > unknown > dead; then
     # number of independent live sources, shops shipping to Norway, shops
-    priority_score = (4 - match(tier, c("A", "B", "C", "D")) + 1) * 1000 +
+    priority_score = (5 - tier_order) * 1000 +
       case_when(live_any ~ 300, str_starts(live_evidence_level, "4") ~ 200, TRUE ~ 100) +
       n_live_sources * 20 + pmin(web_shops_ship_norway, 5) * 2 + pmin(web_shops, 20) / 4) |>
   arrange(desc(priority_score), desc(web_shops), desc(lemis_live_shipments)) |>
   mutate(rank = row_number()) |>
-  transmute(rank, species = accepted_name, tier, tier_label, live_evidence_level,
+  transmute(rank, species = accepted_name, tier, live_evidence_level,
             pest_group, order, family, eppocode, eppo_name, gbif_key,
             regulated_via, eppo_list, eu_list, no_list, no_status,
             n_countries_categorized, plant_feeding, n_hosts, n_major_hosts, hosts,
@@ -129,7 +128,7 @@ main <- acc |>
             n_live_sources, life_state_before_web = life_state, names_merged = names,
             priority_score)
 
-priority <- main |> filter(tier %in% c("A", "B", "C"),
+priority <- main |> filter(tier != "No known plant risk",
                            !str_starts(live_evidence_level, "5")) |>
   head(150)
 
@@ -144,17 +143,17 @@ front <- tibble::tribble(
   "Question", "Which invertebrates traded alive (online, imports) are known or potential plant pests for Norway?",
   "Species screened", fmt(nrow(acc)),
   "In plant-pest scope (insects, mites, snails/slugs, nematodes)", fmt(nrow(main)),
-  "Tier A: regulated (EPPO A1/A2, EU, Norway, genus listing)", fmt(sum(main$tier == "A")),
-  "Tier B: regulated elsewhere", fmt(sum(main$tier == "B")),
-  "Tier C: potential plant pest", fmt(sum(main$tier == "C")),
-  "Tier D: no known plant risk", fmt(sum(main$tier == "D")),
+  "Regulated here (EPPO A1/A2, EU, Norway, genus listing)", fmt(sum(main$tier == "Regulated here")),
+  "Regulated elsewhere (on a list of another country)", fmt(sum(main$tier == "Regulated elsewhere")),
+  "Potential plant pest (plant-feeding; partly a family/order proxy)", fmt(sum(main$tier == "Potential plant pest")),
+  "No known plant risk", fmt(sum(main$tier == "No known plant risk")),
   "Live evidence of any kind", fmt(sum(as.integer(substr(main$live_evidence_level, 1, 1)) <= 3)),
   "On sale online now (web scrape, product/category pages)", fmt(sum(main$on_sale_online)),
   "  of which live listings", fmt(sum(main$web_live_listings > 0)),
-  "Tier A species with live evidence", paste(main$species[main$tier == "A" & as.integer(substr(main$live_evidence_level, 1, 1)) <= 3], collapse = "; "),
-  "Tier A species on sale online", paste(main$species[main$tier == "A" & main$on_sale_online], collapse = "; "),
+  "Regulated here: species with live evidence", paste(main$species[main$tier == "Regulated here" & as.integer(substr(main$live_evidence_level, 1, 1)) <= 3], collapse = "; "),
+  "Regulated here: species on sale online", paste(main$species[main$tier == "Regulated here" & main$on_sale_online], collapse = "; "),
   "Sheets", "summary | priority (top 150) | main (all in-scope species) | web_listings | tier_x_evidence | sources_methods | column_guide. Figures and presentation: insect trade results.qmd",
-  "Draft tier rules", "A regulated; B on a list elsewhere; C EPPO host records or plant-feeding family/order (proxy); D rest. Live trade: any live evidence counts the same (pet, hobby, lab, rearing). Ranking: tier, then live > unknown form > dead only, then number of live sources, shops shipping to Norway, shops.")
+  "Draft tier rules", "Regulated here: EPPO A1/A2, EU or Norwegian list (incl. whole genus). Regulated elsewhere: on a quarantine/A1/A2 list of another country or RPPO. Potential plant pest: EPPO host records or plant-feeding family/order (proxy). No known plant risk: the rest. Live trade: any live evidence counts the same (pet, hobby, lab, rearing). Ranking: tier, then live > unknown form > dead only, then number of live sources, shops shipping to Norway, shops.")
 
 sources <- tibble::tribble(
   ~source, ~what, ~live_vs_dead,
@@ -170,7 +169,7 @@ sources <- tibble::tribble(
 guide <- tibble::tribble(
   ~column, ~meaning,
   "rank / priority_score", "Order for discussion: tier first; then live (any source, all equal) > unknown form > dead only; then number of independent live sources, shops shipping to Norway, number of shops",
-  "tier", "A regulated; B regulated elsewhere; C potential plant pest; D no known plant risk (DRAFT rules)",
+  "tier", "Regulated here / Regulated elsewhere / Potential plant pest / No known plant risk (DRAFT rules, see summary)",
   "live_evidence_level", "Which kind of evidence was found first (1 online live listing, 2 LEMIS live import, 3 live use in literature; 1-3 all count as live), 4 traded in unknown form, 5 dead material only",
   "plant_feeding", "EPPO host records, or proxy from family/order (check)",
   "eppo_list / eu_list / no_list", "Current listings: EPPO (A1/A2, alert), EU (2019/2072 annexes, IAS Union concern), Norway",
@@ -181,7 +180,7 @@ guide <- tibble::tribble(
   "hughes_sources", "Sources in Hughes et al. 2026 where the species was recorded in trade",
   "life_state_before_web", "Species life state from the R pipeline before the web scrape")
 
-xt <- main |> count(tier_label, live_evidence_level) |>
+xt <- main |> count(tier = factor(tier, TIERS), live_evidence_level) |>
   pivot_wider(names_from = live_evidence_level, values_from = n, values_fill = 0)
 
 # --- 6. Workbook ---------------------------------------------------------------------
@@ -193,9 +192,10 @@ path <- file.path(out_dir, "insect_trade_main_DRAFT.xlsx")
 write_xlsx_tables(list(summary = front, priority = priority, main = main,
                        web_listings = web_out, tier_x_evidence = xt,
                        sources_methods = sources, column_guide = guide), path)
-cat(sprintf("Main table: %s species | tier A %d, B %d, C %d, D %d | on sale online %d | shops crawled %d\n",
-            fmt(nrow(main)), sum(main$tier == "A"), sum(main$tier == "B"), sum(main$tier == "C"),
-            sum(main$tier == "D"), sum(main$on_sale_online), n_shops_crawled))
+tt <- table(factor(main$tier, TIERS))
+cat(sprintf("Main table: %s species | %s | on sale online %d | shops crawled %d\n",
+            fmt(nrow(main)), paste(names(tt), tt, collapse = ", "),
+            sum(main$on_sale_online), n_shops_crawled))
 cat("Written:", path, "\n")
 print(as.data.frame(head(priority |> select(rank, species, tier, live_evidence_level, web_shops,
                                             lemis_live_shipments, eppo_list, eu_list), 25)))
