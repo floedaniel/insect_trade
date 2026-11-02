@@ -220,6 +220,7 @@ Shipping terms are often vague: "unclear" means the shop's shipping pages don't 
 - **Covers:** `r fmt(n_crawled)` shops found by multilingual searches (Norwegian/Nordic first); full catalogues where shops publish them (Shopify, WooCommerce), otherwise product sitemaps or links; names matched by scientific names, synonyms and common names in 11 languages.
 - **Polite and lawful:** robots.txt obeyed, ≥ 1.5 s between requests per shop, no personal data stored.
 - **Not covered:** marketplaces whose terms forbid scraping (eBay, Amazon, Facebook groups, Blocket, DBA …) and shops that show products only with JavaScript.
+- **Evidence grades:** a listing counts as *on sale* only if it is a priced product page in a live-animal shop with the species named in the title (strong = labelled live, probable = label unknown). Names only in descriptions (often the target pest of a biocontrol or pesticide product), accessories, research, agrochemical, lab-supply and specimen sites are excluded; a hand-checked list of shop types is in `3_metadata/shop_type_overrides.csv`.
 - **Uncertain:** common-name matches (weaker than scientific names), live/dead labels from listing text, shipping terms.
 
 ## Limitations

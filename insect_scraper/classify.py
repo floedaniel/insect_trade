@@ -22,7 +22,20 @@ ACCESSORY_RX = re.compile(
     # pest-control products (traps, lures, pheromones, products "against" a pest)
     r"pheromones?|ph[ée]romones?|pheromon\w*|feromon\w*|pi[èe]ges?|lures?|falle|fallen|"
     r"felle|f[äa]lla|pułapk\w*|trampa|k[öo]der|appâts?|contre|against|gegen|anti[- ]\w+|"
-    r"bek[äa]mpf\w*|repuls\w*|r[ée]pulsif|bouclier|schutz|protection|monitoring)\b", re.I)
+    r"bek[äa]mpf\w*|repuls\w*|r[ée]pulsif|bouclier|schutz|protection|monitoring|"
+    # pesticides, traps, lab products, dead items
+    r"insectici\w*|insettici\w*|insektizid\w*|pesticid\w*|plaguicid\w*|fungicid\w*|"
+    r"pflanzenschutz\w*|spinosad|deltamethrin|pyrethr\w*|trappol\w*|trampas?|"
+    r"pcr|qpcr|assay|primers?|antibod\w*|reagents?|elisa|"
+    r"taxiderm\w*|paperweight|keyrings?|keychains?|magnets?|stickers?|"
+    r"neem|ppm|control|kontrolle|lutte|controllo|bestrijding|zwalczani\w*|"
+    r"milky spore|kairomon\w*|diffuseur|exterminator|val kit|\w*hoornaarval|lokstof|vallen|"
+    r"fly fishing|fishing flies)\b", re.I)
+
+# biocontrol products: a pest named in the title is usually the target
+BIOCONTROL_RX = re.compile(
+    r"nematod\w*|steinernema|heterorhabditis|trichogramma|parasit\w*|predator\w*|"
+    r"bacillus|beauveria|metarhizium|biocontrol|beneficial|n[üu]tzling\w*|auxiliaires?", re.I)
 CATEGORY_RX = re.compile(r"/collections?/(?!.*/products/)|/categor(y|ies)/|/product-category/|"
                          r"/c/|/kategori|/kategorie", re.I)
 

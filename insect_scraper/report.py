@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 import pandas as pd
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -64,8 +65,16 @@ def write_report(shops: pd.DataFrame) -> None:
         def keep(row):
             if not str(row.get("match_type", "")).startswith("common"):
                 return True
-            other = {g for g in GENUS_RX.findall(str(row.get("title", ""))) if g in idx.genera}
-            if other and str(row["species"]).split()[0] not in other:
+            title = str(row.get("title", ""))
+            genus = str(row["species"]).split()[0]
+            other = {g for g in GENUS_RX.findall(title) if g in idx.genera}
+            if other and genus not in other:
+                return False
+            # title names another species of the same genus ("Pomacea bridgesii")
+            named = {f"{g} {e.lower()}" for g, e in
+                     re.findall(r"\b([A-Z][a-z]{2,})\s([A-Za-z][a-z]{2,})\b", title)
+                     if g == genus and e.lower() not in ("sp", "spp", "snail", "snails", "species")}
+            if named and row["species"] not in named and not str(row["species"]).endswith(" spp."):
                 return False
             text = f"{row.get('title', '')} {row.get('url', '')} {row.get('category', '')}"
             return any(t == row["species"] for t, m in idx.find(text) if m == "common name")
@@ -93,10 +102,63 @@ def write_report(shops: pd.DataFrame) -> None:
                                             "regulated": "regulated_R"}),
                        on="species", how="left"))
     listings["regulated"] = listings["regulated"].astype(bool)
+
+    # --- evidence grade -----------------------------------------------------
+    # A shop is a live-animal shop if it has a priced product labelled live,
+    # or if discovery already labelled it live. Agrochemical, lab-supply and
+    # research sites therefore don't count, even with a price.
+    price_num = pd.to_numeric(listings["price"].astype(str).str.extract(r"(\d+(?:[.,]\d+)?)")[0]
+                              .str.replace(",", "."), errors="coerce")
+    listings["has_price"] = price_num.fillna(0) > 0
+    # >= 2 priced products labelled live AND >= 15% of the shop's priced
+    # product matches (one stray "larvae" in a paper title is not enough)
+    priced = listings[(listings["page_type"] == "product") & listings["has_price"]]
+    st = priced.groupby("domain").agg(n=("url", "nunique"),
+                                      n_live=("life_state", lambda s: int((s == "live").sum())))
+    by_listings = set(st.index[(st["n_live"] >= 2) & (st["n_live"] / st["n"] >= 0.15)])
+    by_discovery = set(shops.loc[shops["life_state"] == "live", "domain"]) if "life_state" in shops else set()
+    live_shops = by_listings | by_discovery
+    listings["live_animal_shop"] = listings["domain"].isin(live_shops)
+    title_hit = listings["match_type"].isin(["scientific name", "common name"])
+    base = (listings["page_type"].isin(SALE_TYPES) & listings["has_price"]
+            & listings["live_animal_shop"])
+    # specimen dealers: at least as many dead- as live-labelled priced products;
+    # their listings without a live label are probably specimens
+    dead_heavy = priced.groupby("domain")["life_state"].agg(
+        lambda s: int((s == "dead").sum()) >= max(1, int((s == "live").sum())))
+    listings["specimen_dealer"] = listings["domain"].isin(set(dead_heavy.index[dead_heavy]))
+    # hand-curated shop types (3_metadata/shop_type_overrides.csv)
+    ov_file = config.META_DIR / "shop_type_overrides.csv"
+    ov = pd.read_csv(ov_file, dtype=str).fillna("") if ov_file.exists() else pd.DataFrame(columns=["domain", "type"])
+    ov_type = dict(zip(ov["domain"], ov["type"]))
+    listings["shop_type"] = listings["domain"].map(ov_type).fillna("")
+    listings = listings[listings["shop_type"] != "not a shop"]
+    base = base.reindex(listings.index)
+    title_hit = title_hit.reindex(listings.index)
+    listings.loc[listings["shop_type"] == "dead goods", "specimen_dealer"] = True
+    listings.loc[listings["shop_type"] == "live supplier", "live_animal_shop"] = True
+    base = (listings["page_type"].isin(SALE_TYPES) & listings["has_price"]
+            & listings["live_animal_shop"])
+
+    # biocontrol product whose title names the pest as its target
+    from .classify import BIOCONTROL_RX
+    target_only = [bool(BIOCONTROL_RX.search(t)) and str(s).split()[0].lower() not in t.lower()
+                   for t, s in zip(listings["title"].astype(str), listings["species"].astype(str))]
+    title_hit = title_hit & ~pd.Series(target_only, index=listings.index)
+    listings["evidence"] = "weak"
+    # the name must be in the title or URL: a name only in the description is
+    # often the target pest of a product (biocontrol, pesticide), not the product
+    listings.loc[base & title_hit & ~listings["life_state"].eq("dead")
+                 & ~listings["specimen_dealer"], "evidence"] = "probable"
+    listings.loc[base & title_hit & listings["life_state"].eq("live")
+                 & ~listings["shop_type"].eq("dead goods"), "evidence"] = "strong"
+    listings.loc[listings["life_state"].eq("dead") | listings["shop_type"].eq("dead goods"),
+                 "evidence"] = "dead"
     listings = listings.sort_values(["regulated", "species", "domain"], ascending=[False, True, True])
     listings.to_csv(config.DATA_DIR / "web_listings.csv", index=False)   # working file for R
 
-    sale = listings[listings["page_type"].isin(SALE_TYPES)]
+    # evidence of sale = strong or probable (weak and dead stay in 'listings')
+    sale = listings[listings["evidence"].isin(["strong", "probable"])]
     by_species = (sale.groupby("species", dropna=False)
                   .agg(regulated=("regulated", "max"),
                        eppocode=("eppocode", "first"), pest_group=("pest_group", "first"),
@@ -137,7 +199,9 @@ def write_report(shops: pd.DataFrame) -> None:
     guide = pd.DataFrame([
         ("regulated_on_sale", "Listings of regulated species (EPPO A1/A2, EU, Norway, or whole-genus listing) on product/category pages"),
         ("species_on_sale", "One row per species found on product/category pages: shops, listings, live/dead counts, shops that mention shipping to Norway"),
-        ("listings", "All matched pages, incl. info/accessory pages (not counted as sale)"),
+        ("listings", "All matched pages with an evidence grade; only strong/probable count as on sale"),
+        ("evidence", "strong: live-animal shop, priced product page, labelled live. probable: same, label unknown, species name in title. weak: anything else (name only in description, no price, accessory/info page, or not a live-animal shop such as agrochemical, lab-supply or research sites). dead: labelled dead"),
+        ("live_animal_shop", "Shop has a priced product labelled live, or was labelled live at discovery"),
         ("shops", "Every shop crawled: platform, method, catalogue size, seller country, ships to Norway, shipping scope, evidence text"),
         ("new_latin_names", "Latin names of known genera found on product pages but NOT in our species list: candidates to add"),
         ("match_type", "scientific name (title/URL), scientific name (description), or common name (GBIF vernacular, weaker)"),

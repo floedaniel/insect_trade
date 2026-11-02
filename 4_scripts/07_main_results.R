@@ -54,13 +54,14 @@ per_name <- sp |>
                   n_major_hosts), \(x) if_else(is.infinite(x), NA, x)))
 
 web_sp <- if (nrow(web)) web |>
-  filter(page_type %in% c("product", "category")) |>
+  # evidence of sale: strong (live) or probable (see species_on_sale.xlsx guide)
+  filter(evidence %in% c("strong", "probable")) |>
   group_by(species) |>
   summarise(web_shops = n_distinct(domain), web_listings = n_distinct(url),
-            web_live_listings = n_distinct(url[life_state == "live"]),
+            web_live_listings = n_distinct(url[evidence == "strong"]),
             web_shops_ship_norway = n_distinct(domain[str_starts(coalesce(ships_to_norway, ""), "yes")]),
             web_seller_countries = paste(sort(unique(na.omit(seller_country[seller_country != ""]))), collapse = "; "),
-            web_example = first(url[life_state == "live"] %||% url),
+            web_example = first(c(url[evidence == "strong"], url)),
             web_match = paste(sort(unique(match_type)), collapse = "; "),
             .groups = "drop") else tibble(species = character())
 
@@ -173,7 +174,7 @@ guide <- tibble::tribble(
   "live_evidence_level", "Which kind of evidence was found first (1 online live listing, 2 LEMIS live import, 3 live use in literature; 1-3 all count as live), 4 traded in unknown form, 5 dead material only",
   "plant_feeding", "EPPO host records, or proxy from family/order (check)",
   "eppo_list / eu_list / no_list", "Current listings: EPPO (A1/A2, alert), EU (2019/2072 annexes, IAS Union concern), Norway",
-  "web_*", "Web scrape: shops, listings, live listings, shops that state shipping to Norway, seller countries, one example URL",
+  "web_*", "Web scrape, strong or probable evidence only: shops, listings, live listings (strong), shops that state shipping to Norway, seller countries, one example URL. Weak hits (name only in a description, no price, not a live-animal shop, accessories, research/agrochemical sites) are excluded",
   "lemis_*", "US imports 2000-2022: live shipments, years, purpose (T commercial, S scientific, M biomedical, P personal, Z zoo), origin; dead shipments",
   "lassaline_use", "Use reported in the literature review",
   "wang_ebay_dead_sales", "eBay sales 2022 of dead specimens (butterflies)",
@@ -184,8 +185,8 @@ xt <- main |> count(tier_label, live_evidence_level) |>
   pivot_wider(names_from = live_evidence_level, values_from = n, values_fill = 0)
 
 # --- 6. Workbook ---------------------------------------------------------------------
-web_out <- if (nrow(web)) web |> filter(page_type %in% c("product", "category")) |>
-  select(species, regulated, life_state, title, url, domain, price, currency, available,
+web_out <- if (nrow(web)) web |> filter(evidence %in% c("strong", "probable")) |>
+  select(species, regulated, evidence, life_state, title, url, domain, price, currency, available,
          seller_country, ships_to_norway, ship_scope, match_type, page_type) |>
   arrange(desc(regulated), species) else tibble()
 path <- file.path(out_dir, "insect_trade_main_DRAFT.xlsx")
