@@ -230,7 +230,7 @@ Shipping terms are often vague: "unclear" means the shop's shipping pages don't 
 - LEMIS covers **US imports** only; Lassaline and Wang describe past trade, not current sales to Norway.
 - EPPO matching is exact; names unknown to EPPO have no regulatory data.
 - "Potential plant pest" is a rough proxy until host plants are added.
-- Web results are a snapshot (crawl of 2–3 November 2026); key listings need manual checks. `r fmt(sum(shops$status == 'ok (time limit)'))` large shops were stopped at a 45-minute limit, so their catalogues are partly covered; `r fmt(sum(shops$status == 'unreachable'))` shops were unreachable.
+- Web results are a snapshot (crawl of 2 November 2026); key listings need manual checks. `r fmt(sum(shops$status == 'ok (time limit)'))` large shops were stopped at a 45-minute limit, so their catalogues are partly covered; `r fmt(sum(shops$status == 'unreachable'))` shops were unreachable.
 
 ## For discussion with the panel
 
