@@ -126,7 +126,46 @@ main <- acc |>
             lemis_live_purpose, lemis_live_origin, lemis_dead_shipments,
             lassaline_use, wang_ebay_dead_sales, hughes_sources,
             n_live_sources, life_state_before_web = life_state, names_merged = names,
-            priority_score)
+            priority_score) |>
+  mutate(source = "species list (Hughes 2026 / LEMIS)")
+
+# --- 3b. New species found only on shop pages (insect_scraper newnames) -----
+# Same evidence rules as listings: name in the title of a priced product page
+# in a live-animal shop. Status from GBIF + EPPO (see new_latin_names_resolved.xlsx).
+new_file <- proc("web_new_species.csv")
+if (file.exists(new_file)) {
+  newsp <- rd("web_new_species.csv") |>
+    filter(!species %in% main$species) |>
+    # once matched by later crawls, graded listing evidence replaces the
+    # counts from name discovery
+    left_join(web_sp |> select(species, ws = web_shops, wl = web_listings, wlive = web_live_listings,
+                               wno = web_shops_ship_norway, wex = web_example), by = "species") |>
+    mutate(n_shops = coalesce(ws, n_shops), n_pages = coalesce(wl, n_pages),
+           live_pages = coalesce(wlive, live_pages), example_url = coalesce(wex, example_url),
+           ship_no = coalesce(wno, 0L)) |>
+    transmute(
+      species, tier,
+      live_evidence_level = if_else(live_pages > 0, "1 live on sale online now", "4 traded, form unknown"),
+      pest_group, order, family, eppocode = na_if(eppocode, ""), eppo_name = na_if(eppo_name, ""),
+      gbif_key = as.numeric(gbif_key), eppo_list, eu_list, no_list,
+      n_countries_categorized = n_countries_listed,
+      plant_feeding = case_when(n_hosts > 0 ~ "yes (EPPO host records)",
+                                family %in% plant_feeding_families ~ "likely (family)",
+                                TRUE ~ "likely (order/group)"),
+      n_hosts, hosts, on_sale_online = TRUE, web_shops = n_shops, web_listings = n_pages,
+      web_live_listings = live_pages, web_shops_ship_norway = ship_no, web_example = example_url,
+      n_live_sources = as.integer(live_pages > 0), names_merged = names_on_shops,
+      source = "found on shop pages only (not in Hughes 2026 / LEMIS)")
+  main <- bind_rows(main, newsp)
+}
+main <- main |>
+  mutate(priority_score = (5 - match(tier, TIERS)) * 1000 +
+           case_when(as.integer(substr(live_evidence_level, 1, 1)) <= 3 ~ 300,
+                     str_starts(live_evidence_level, "4") ~ 200, TRUE ~ 100) +
+           n_live_sources * 20 + pmin(coalesce(web_shops_ship_norway, 0L), 5) * 2 +
+           pmin(coalesce(web_shops, 0L), 20) / 4) |>
+  arrange(desc(priority_score), desc(web_shops), desc(lemis_live_shipments)) |>
+  mutate(rank = row_number())
 
 priority <- main |> filter(tier != "No known plant risk",
                            !str_starts(live_evidence_level, "5")) |>
@@ -142,6 +181,7 @@ front <- tibble::tribble(
   "Status", sprintf("Draft built %s from existing results. Web crawl in progress: %s shops done.", format(Sys.Date()), fmt(n_shops_crawled)),
   "Question", "Which invertebrates traded alive (online, imports) are known or potential plant pests for Norway?",
   "Species screened", fmt(nrow(acc)),
+  "New species found only on shop pages (in scope)", fmt(sum(main$source != "species list (Hughes 2026 / LEMIS)")),
   "In plant-pest scope (insects, mites, snails/slugs, nematodes)", fmt(nrow(main)),
   "Regulated here (EPPO A1/A2, EU, Norway, genus listing)", fmt(sum(main$tier == "Regulated here")),
   "Regulated elsewhere (on a list of another country)", fmt(sum(main$tier == "Regulated elsewhere")),
@@ -178,7 +218,8 @@ guide <- tibble::tribble(
   "lassaline_use", "Use reported in the literature review",
   "wang_ebay_dead_sales", "eBay sales 2022 of dead specimens (butterflies)",
   "hughes_sources", "Sources in Hughes et al. 2026 where the species was recorded in trade",
-  "life_state_before_web", "Species life state from the R pipeline before the web scrape")
+  "life_state_before_web", "Species life state from the R pipeline before the web scrape",
+  "source", "species list (Hughes 2026 / LEMIS), or found on shop pages only (new Latin names, resolved with GBIF and EPPO)")
 
 xt <- main |> count(tier = factor(tier, TIERS), live_evidence_level) |>
   pivot_wider(names_from = live_evidence_level, values_from = n, values_fill = 0)

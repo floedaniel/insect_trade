@@ -253,6 +253,7 @@ async def crawl_shop(f: Fetcher, idx: NameIndex, domain: str, found_url: str = "
         return res
 
     base, home = None, None
+    codes = []
     for cand in (f"https://{domain}", f"https://www.{domain.removeprefix('www.')}"):
         r = await f.get(cand + "/")
         if r.ok:
@@ -261,8 +262,18 @@ async def crawl_shop(f: Fetcher, idx: NameIndex, domain: str, found_url: str = "
         if r.status == -1:
             res.status = "disallowed by robots.txt"
             return res
+        codes.append(r.status)
     if not base:
-        res.status = "unreachable"
+        # record why; bot protection (403, 202 challenge pages) is respected,
+        # never worked around: those shops are listed for manual checks
+        if any(c in (401, 403, 202) for c in codes):
+            res.status = f"blocked by bot protection (HTTP {next(c for c in codes if c in (401, 403, 202))})"
+        elif any(c >= 500 or c == 429 for c in codes):
+            res.status = f"unreachable (server error HTTP {max(codes)})"
+        elif any(c == 404 for c in codes):
+            res.status = "unreachable (HTTP 404)"
+        else:
+            res.status = "unreachable (no response)"
         return res
     host = urlsplit(base).netloc
     res.platform = _platform(home)

@@ -2,7 +2,11 @@
 
   py -3 -m insect_scraper discover [--max-queries N]
   py -3 -m insect_scraper crawl [--states live,unknown,check] [--workers 12] [--max-shops N] [--refresh]
+  py -3 -m insect_scraper crawl --retry "ok (time limit),unreachable" --budget-min 240 --max-pages 10000
+      re-crawl shops whose saved status starts with one of these (old results kept in
+      2_processed_data/scrape_results/_previous/); cached pages make restarts fast
   py -3 -m insect_scraper report
+  py -3 -m insect_scraper newnames     (resolve new Latin names found on shop pages)
   py -3 -m insect_scraper all          (discover + crawl + report)
 """
 
@@ -11,6 +15,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import shutil
 import time
 
 import pandas as pd
@@ -45,7 +50,8 @@ def load_shops(states: list[str]) -> pd.DataFrame:
     return shops.reset_index(drop=True)
 
 
-async def crawl_all(shops: pd.DataFrame, workers: int, refresh: bool) -> None:
+async def crawl_all(shops: pd.DataFrame, workers: int, refresh: bool,
+                    budget_s: float = config.SHOP_TIME_BUDGET) -> None:
     idx = build_index()
     f = Fetcher()
     sem = asyncio.Semaphore(workers)
@@ -66,13 +72,14 @@ async def crawl_all(shops: pd.DataFrame, workers: int, refresh: bool) -> None:
                 return
             lock.write_text(str(time.time()), encoding="utf-8")
             try:
-                res = await crawl_shop(f, idx, r.domain, getattr(r, "url", "") or "")
+                res = await crawl_shop(f, idx, r.domain, getattr(r, "url", "") or "", budget_s=budget_s)
                 out = res.to_json()
             except Exception as e:  # keep going, record the error
                 out = {"domain": r.domain, "status": f"error: {type(e).__name__}: {e}"[:300],
                        "products": [], "new_names": [], "shop_info": {}}
             (RESULTS_DIR / f"{r.domain}.json").write_text(json.dumps(out), encoding="utf-8")
             lock.unlink(missing_ok=True)
+            done += 1
             # refresh the xlsx every 50 shops so results can be followed live
             if done % 50 == 0:
                 try:
@@ -80,7 +87,6 @@ async def crawl_all(shops: pd.DataFrame, workers: int, refresh: bool) -> None:
                     write_report(load_shops([]))
                 except Exception as e:
                     print(f"  (interim report failed: {e})")
-            done += 1
             n = len(out.get("products", []))
             reg = len({p["species"] for p in out.get("products", []) if p.get("regulated")})
             print(f"[{done}/{len(todo)}] {r.domain:<38} {out.get('status',''):<12.12} "
@@ -103,23 +109,45 @@ async def crawl_all(shops: pd.DataFrame, workers: int, refresh: bool) -> None:
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="insect_scraper")
-    ap.add_argument("command", choices=["discover", "crawl", "report", "all"])
+    ap.add_argument("command", choices=["discover", "crawl", "report", "all", "newnames"])
     ap.add_argument("--states", default="live,unknown,check",
                     help="shop life_state values to crawl (comma list)")
     ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--max-shops", type=int, default=0)
     ap.add_argument("--max-queries", type=int, default=400)
     ap.add_argument("--refresh", action="store_true", help="re-crawl shops already done")
+    ap.add_argument("--retry", default="", help="comma list of status prefixes to re-crawl, e.g. \"ok (time limit),unreachable\"")
+    ap.add_argument("--budget-min", type=float, default=config.SHOP_TIME_BUDGET / 60,
+                    help="time limit per shop in minutes")
+    ap.add_argument("--max-pages", type=int, default=config.MAX_PRODUCT_PAGES,
+                    help="product pages per shop (shops without a catalogue API)")
     a = ap.parse_args(argv)
 
+    if a.command == "newnames":
+        from .newnames import resolve
+        resolve()
+        return
     if a.command in ("discover", "all"):
         from .discover import discover
         discover(max_queries=a.max_queries)
     if a.command in ("crawl", "all"):
-        shops = load_shops([s for s in a.states.split(",") if s])
+        config.MAX_PRODUCT_PAGES = a.max_pages
+        if a.retry:
+            prefixes = tuple(x.strip() for x in a.retry.split(",") if x.strip())
+            prev = RESULTS_DIR / "_previous"; prev.mkdir(exist_ok=True)
+            again = []
+            for f in RESULTS_DIR.glob("*.json"):
+                if json.loads(f.read_text(encoding="utf-8")).get("status", "").startswith(prefixes):
+                    again.append(f.stem)
+                    shutil.move(str(f), prev / f.name)
+            shops = load_shops([])
+            shops = shops[shops["domain"].isin(again)].reset_index(drop=True)
+            print(f"Retry: {len(again)} shops with status {prefixes}")
+        else:
+            shops = load_shops([s for s in a.states.split(",") if s])
         if a.max_shops:
             shops = shops.head(a.max_shops)
-        asyncio.run(crawl_all(shops, a.workers, a.refresh))
+        asyncio.run(crawl_all(shops, a.workers, a.refresh, a.budget_min * 60))
     if a.command in ("report", "crawl", "all"):
         from .report import write_report
         write_report(load_shops([]))

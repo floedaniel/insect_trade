@@ -162,6 +162,21 @@ def build_index(include_dead: bool = True, fetch_missing: bool = True) -> NameIn
         if key.count(" ") == 1 and len(key) >= 7:
             sci.setdefault(key, set()).add(accepted)
     scientific = {k: next(iter(v)) for k, v in sci.items() if len(v) == 1}
+    # new in-scope species found on shop pages (insect_scraper newnames)
+    web_new = config.DATA_DIR / "web_new_species.csv"
+    if web_new.exists():
+        wn = pd.read_csv(web_new, dtype=str)
+        for sp_name, aliases in zip(wn["species"], wn["names_on_shops"].fillna("")):
+            for alias in [sp_name] + aliases.split("; "):
+                key = " ".join(norm(alias).split()[:2])
+                if key.count(" ") == 1 and len(key) >= 7:
+                    scientific.setdefault(key, sp_name)
+        cand_names |= set(wn["species"])
+        # rows for the new species, so later steps can look up their status
+        extra = wn.rename(columns={"species": "accepted_name"}).assign(
+            regulated=wn["tier"].eq("Regulated here"), in_scope=True, life_state="live",
+            eppo_name="", gbif_key=wn["gbif_key"])
+        cand = pd.concat([cand, extra[[c for c in cand.columns if c in extra.columns]]], ignore_index=True)
 
     # common names from GBIF vernacular names
     keys = cand["gbif_key"].dropna().astype(str).str.replace(r"\.0$", "", regex=True)

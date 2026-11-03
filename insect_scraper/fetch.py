@@ -42,6 +42,10 @@ class Cache:
                               (url,)).fetchone()
         if not row or time.time() - row[1] > max_age_days * 86400:
             return None
+        # only real pages (200) and "not found" (404) are reused; errors,
+        # rate limits and bot-protection answers are asked again next time
+        if row[0] not in (200, 404):
+            return None
         body = zlib.decompress(row[2]).decode("utf-8", "replace") if row[2] else None
         return Response(url, row[0], body, from_cache=True)
 
