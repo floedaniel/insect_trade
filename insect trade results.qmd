@@ -62,7 +62,7 @@ theme_set(theme_minimal(base_size = 15) +
 | 3 | Live use in trade | Lassaline et al. 2025 review; Wang et al. 2023 eBay sales |
 | 4 | Names | GBIF backbone, Catalogue of Life, EPPO codes (synonyms merged) |
 | 5 | Pest status | EPPO Global Database: EPPO/EU/national lists, host plants |
-| 6 | **On sale now** | **Own web scrape**: `r fmt(n_crawled)` shops crawled so far (catalogues, product pages, shipping terms) |
+| 6 | **On sale now** | **Own web scrape**: `r fmt(n_crawled)` shops crawled of `r fmt(nrow(shops))` found (catalogues, product pages, shipping terms), November 2026 |
 | 7 | Draft tier | Regulated here · Regulated elsewhere · Potential plant pest · No known plant risk |
 
 ## From traded species to live plant-pest candidates
@@ -182,7 +182,7 @@ main |> filter(on_sale_online) |>
 ```
 
 Mostly live feeders (mealworm, dubia roach, black soldier fly, superworm, silkworm, waxworm) and pet snails.
-Crawl in progress: `r fmt(n_crawled)` shops so far.
+Based on `r fmt(n_crawled)` shops crawled (November 2026).
 
 ## Plant-pest candidates on sale online (not regulated in Norway/EU)
 
@@ -230,7 +230,7 @@ Shipping terms are often vague: "unclear" means the shop's shipping pages don't 
 - LEMIS covers **US imports** only; Lassaline and Wang describe past trade, not current sales to Norway.
 - EPPO matching is exact; names unknown to EPPO have no regulatory data.
 - "Potential plant pest" is a rough proxy until host plants are added.
-- Web results are a snapshot (crawl still running) and need manual checks of key listings.
+- Web results are a snapshot (crawl of 2–3 November 2026); key listings need manual checks. `r fmt(sum(shops$status == 'ok (time limit)'))` large shops were stopped at a 45-minute limit, so their catalogues are partly covered; `r fmt(sum(shops$status == 'unreachable'))` shops were unreachable.
 
 ## For discussion with the panel
 
